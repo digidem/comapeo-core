@@ -99,7 +99,7 @@ manager.inviteLinks.on('join-request-update', (update) => {
       // Join succeeded — update.projectId has the project public ID
       break
     case 'failed':
-      // Join failed — update.error has the error code (e.g. 'INVITE_CONNECTION_ERROR')
+      // Join failed — update.error has the error code (e.g. 'CONNECTION_LOST_ERROR')
       // Subscribe to 'join-request-error' for the full KnownError and its .cause
       break
   }
@@ -168,7 +168,7 @@ try {
   // joined!
 } catch (error) {
   // Full KnownError from join-request-error (use .code / .cause to branch):
-  // InviteRedeemConnectionClosedError — connection lost
+  // ConnectionLostError — connection to the invitor was lost after the redeem
   // UnknownInviteIDError — invitor does not recognise the invite id
   // InviteDeniedByInviterError — invitor denied the request
   // JoinProjectCancelledError — cancelled by invitee

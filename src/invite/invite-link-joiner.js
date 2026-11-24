@@ -4,7 +4,7 @@ import { parseInviteURL } from './invite-urls.js'
 import {
   AlreadyJoinedError,
   ExistingJoinRequestError,
-  InviteRedeemConnectionClosedError,
+  ConnectionLostError,
   InviteConnectionError,
   JoinRequestNotFoundError,
   JoinProjectCancelledError,
@@ -27,7 +27,6 @@ import { DenyInviteOverInternet_DenyReason } from '../generated/invite.js'
  */
 const NETWORK_ERROR_CODES = new Set([
   TimeoutError.code,
-  InviteRedeemConnectionClosedError.code,
   PeerDisconnectedError.code,
   RPCDisconnectBeforeSendingError.code,
   RPCDisconnectBeforeAckError.code,
@@ -219,13 +218,15 @@ export class InviteLinkJoiner extends TypedEmitter {
         { once: true }
       )
 
+      // Once the redeem has been sent and ack'd, a closed connection means the
+      // join can no longer complete.
       const onClose = pEvent(connection, 'close').then(
         () => {
-          throw new InviteRedeemConnectionClosedError()
+          throw new ConnectionLostError()
         },
         // Handle `error` event on connection if there's sudden closes
         (e) => {
-          throw new InviteRedeemConnectionClosedError({ cause: e })
+          throw new ConnectionLostError({ cause: e })
         }
       )
       // It's okay if this rejection never gets handled
@@ -296,9 +297,13 @@ export class InviteLinkJoiner extends TypedEmitter {
       // Race: wait for invite vs connection close
       const invite = await Promise.race([onInvited, onClose])
 
-      const projectId = await this.#inviteApi.accept(
+      const joinProject = this.#inviteApi.accept(
         /** @type {{ inviteId: string }} */ (invite)
       )
+      // A dropped connection during the join's initial sync is a connection
+      // loss, not a sync failure.
+      const projectId = await Promise.race([joinProject, onClose])
+      joinProject.catch(noop)
 
       // Completed
       joinRequest.status = 'completed'

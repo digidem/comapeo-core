@@ -14,6 +14,7 @@ import {
   InviteExpiredError,
   ExistingJoinRequestError,
   JoinProjectCancelledError,
+  ConnectionLostError,
 } from '../src/errors.js'
 
 /** @import { RemoteAuthedNoiseStream } from '../src/discovery/remote-discovery.js' */
@@ -37,18 +38,25 @@ function mockConnection(authenticatedPublicKey) {
 /**
  * @typedef {object} MockInviteApiOptions
  * @property {string} [projectId] Project ID returned by accept (default: random)
+ * @property {Promise<unknown>} [acceptGate] If set, accept awaits this before resolving
  */
 
 class MockInviteApi extends TypedEmitter {
   /** @type {string} */
   #projectId
+  /** @type {Promise<unknown>|undefined} */
+  #acceptGate
 
   /**
    * @param {MockInviteApiOptions} [opts]
    */
-  constructor({ projectId = randomBytes(20).toString('hex') } = {}) {
+  constructor({
+    projectId = randomBytes(20).toString('hex'),
+    acceptGate,
+  } = {}) {
     super()
     this.#projectId = projectId
+    this.#acceptGate = acceptGate
   }
 
   /**
@@ -56,6 +64,7 @@ class MockInviteApi extends TypedEmitter {
    * @returns {Promise<string>}
    */
   async accept(_invite) {
+    if (this.#acceptGate) await this.#acceptGate
     return this.#projectId
   }
 }
@@ -337,7 +346,7 @@ test('deny: inviter auto-denies an already-joined peer', async () => {
   ctx.connection.end()
 })
 
-test('connection close: peer disconnects before invite arrives', async () => {
+test('connection close: peer disconnects after redeem', async () => {
   const ctx = makeTestContext()
   const identityKey = ctx.authenticatedPublicKey.toString('hex')
   const inviteApi = new MockInviteApi({ projectId: ctx.projectId })
@@ -390,16 +399,81 @@ test('connection close: peer disconnects before invite arrives', async () => {
   // Verify markReady was called (happens before the close race)
   assert.deepEqual(mockRpc.markReadyCalls, [identityKey])
 
-  // Verify the error is wrapped as InviteConnectionError
+  // The connection closed after the redeem was sent, so it's a ConnectionLostError
   const failedUpdate = updates.find((u) => u.status === 'failed')
   assert.ok(failedUpdate)
   assert.ok(failedUpdate.error)
-  assert.equal(failedUpdate.error, 'INVITE_CONNECTION_ERROR')
+  assert.equal(failedUpdate.error, ConnectionLostError.code)
 
   // Error is also emitted as a separate parameter (the full KnownError)
   assert.ok(lastError)
   assert.equal(lastError.code, failedUpdate.error)
-  assert.equal(lastError.code, 'INVITE_CONNECTION_ERROR')
+  assert.equal(lastError.code, ConnectionLostError.code)
+})
+
+test('connection close: peer disconnects during initial sync', async () => {
+  const ctx = makeTestContext()
+  const identityKey = ctx.authenticatedPublicKey.toString('hex')
+  // accept hangs on a gate that never resolves, simulating a long initial sync
+  const inviteApi = new MockInviteApi({
+    projectId: ctx.projectId,
+    acceptGate: new Promise(() => {}),
+  })
+  const mockRpc = new MockInviteLinkRPC({ inviteApi })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => ctx.connection,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  /** @type {JoinRequestUpdate[]} */
+  const updates = []
+  /** @type {KnownError|undefined} */
+  let lastError
+  joiner.on('join-request-update', (update) => {
+    updates.push(update)
+  })
+  joiner.on('join-request-error', (error) => {
+    lastError = error
+  })
+
+  const onAccepted = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'accepted',
+  })
+  const onFailed = pEvent(joiner, 'join-request-update', {
+    timeout: 2000,
+    filter: ({ status }) => status === 'failed',
+  })
+
+  joiner.createJoinRequest(ctx.url)
+
+  // Reach 'accepted' (invite arrived, initial sync now in progress), then drop
+  // the connection mid-sync.
+  await onAccepted
+  ctx.connection.destroy()
+
+  await onFailed
+
+  // Status transitions: connecting → connected → accepted → failed
+  assert.deepEqual(
+    updates.map((u) => u.status),
+    ['connecting', 'connected', 'accepted', 'failed']
+  )
+
+  assert.equal(mockRpc.redeemCalls[0].deviceId, identityKey)
+  assert.deepEqual(mockRpc.disconnectCalls, [identityKey])
+
+  const failedUpdate = updates.find((u) => u.status === 'failed')
+  assert.ok(failedUpdate)
+  assert.equal(failedUpdate.error, ConnectionLostError.code)
+
+  assert.ok(lastError)
+  assert.equal(lastError.code, ConnectionLostError.code)
+
+  ctx.connection.end()
 })
 
 test('finished requests are kept when a new invite starts', async () => {

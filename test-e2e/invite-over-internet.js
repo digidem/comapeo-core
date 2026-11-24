@@ -14,7 +14,7 @@ import {
   AlreadyJoinedError,
   UnknownInviteIDRedeemAttemptError,
   TimeoutError,
-  InviteRedeemConnectionClosedError,
+  ConnectionLostError,
   ensureKnownError,
   InviteNotYetRedeemedError,
   InviteDeniedByInviterError,
@@ -464,10 +464,7 @@ test('invite over internet errors if inviter closes before accepting', async (t)
     // The invitee's join should fail because the invitor disconnected
     assert.rejects(
       onJoinComplete,
-      (err) =>
-        err instanceof InviteConnectionError &&
-        ensureKnownError(err.cause).code ===
-          InviteRedeemConnectionClosedError.code
+      (err) => ensureKnownError(err).code === ConnectionLostError.code
     ),
     // Close the invitor before accepting
     invitor.close(),
