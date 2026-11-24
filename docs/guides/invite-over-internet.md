@@ -158,7 +158,7 @@ if (update.status === 'completed') {
 } else {
   throw update.error
   // InviteRedeemConnectionClosedError — connection lost
-  // UnknownInviteIDError — invite expired or invalid
+  // UnknownInviteIDError — invitor does not recognise the invite id
   // InviteDeniedByInviterError — invitor denied the request
   // JoinProjectCancelledError — cancelled by invitee
 }

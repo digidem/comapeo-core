@@ -15,8 +15,10 @@ import {
   InitialSyncFailedError,
   ensureKnownError,
   InviteDeniedByInviterError,
+  UnknownInviteIDError,
   InviteExpiredError,
 } from '../errors.js'
+import { DenyInviteOverInternet_DenyReason } from '../generated/invite.js'
 
 /**
  * Error codes that indicate a network/transport failure
@@ -243,7 +245,10 @@ export class InviteLinkJoiner extends TypedEmitter {
         signal,
       }).then(async ({ reason }) => {
         await this.#inviteLinkRPC.denyAck(inviteIdBuffer, identityPublicKeyHex)
-        throw new InviteDeniedByInviterError({ reason })
+        if (reason === DenyInviteOverInternet_DenyReason.unknown_invite_id) {
+          throw new UnknownInviteIDError()
+        }
+        throw new InviteDeniedByInviterError()
       })
       onDeny.catch(noop)
 

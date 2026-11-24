@@ -17,6 +17,7 @@ import {
   ensureKnownError,
   InviteNotYetRedeemedError,
   InviteDeniedByInviterError,
+  UnknownInviteIDError,
   InviteAbortedError,
   JoinProjectCancelledError,
   InviteConnectionError,
@@ -585,7 +586,7 @@ test('invite over internet errors if invitee uses invalid inviteId', async (t) =
     assert.rejects(
       // Try to join with invalid invite ID
       onJoinComplete,
-      (err) => ensureKnownError(err).code === InviteDeniedByInviterError.code
+      (err) => ensureKnownError(err).code === UnknownInviteIDError.code
     ),
   ])
 })
@@ -915,7 +916,10 @@ test('denied peer reconnecting with the same identity is not replicated with', a
   )
 
   await Promise.all([
-    assert.rejects(onJoinComplete),
+    assert.rejects(
+      onJoinComplete,
+      (err) => ensureKnownError(err).code === InviteDeniedByInviterError.code
+    ),
     project.$member.denyInviteLinkRequest(redeemInviteId, deviceId),
   ])
 
