@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { KeyManager } from '@comapeo/crypto'
+import {
+  keyManagerFixture,
+  deviceKeyFixture,
+} from '../test/helpers/key-manager.js'
 import { generate } from '@mapeo/mock-data'
 import { parseVersionId, valueOf } from '@comapeo/schema'
 import { discoveryKey } from 'hypercore-crypto'
@@ -9,10 +12,11 @@ import { kCoreOwnership } from '../src/mapeo-project.js'
 import { createManager } from './utils.js'
 
 test('CoreOwnership', async (t) => {
-  const rootKey = KeyManager.generateRootKey()
-  const km = new KeyManager(rootKey)
+  const km = keyManagerFixture(0)
+  const { rootKey, masterKey } = deviceKeyFixture(0)
   const manager = createManager('test', t, {
     rootKey,
+    masterKey,
   })
 
   const projectId = await manager.createProject()

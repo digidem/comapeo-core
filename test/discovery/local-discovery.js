@@ -1,9 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { randomBytes } from 'node:crypto'
 import net from 'node:net'
 import { every } from 'iterpal'
-import { KeyManager } from '@comapeo/crypto'
+import { keyManagerFixture } from '../helpers/key-manager.js'
 import { setTimeout as delay } from 'node:timers/promises'
 import pDefer from 'p-defer'
 import { keyToPublicId } from '@comapeo/crypto'
@@ -16,8 +15,8 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
 
 test('peer discovery - discovery and sharing of data', async (t) => {
   const deferred = pDefer()
-  const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
-  const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
+  const identityKeypair1 = keyManagerFixture(0).getIdentityKeypair()
+  const identityKeypair2 = keyManagerFixture(1).getIdentityKeypair()
 
   const localDiscovery1 = new LocalDiscovery({
     identityKeypair: identityKeypair1,
@@ -61,8 +60,8 @@ test('deduplicate incoming connections', async () => {
   const localConnections = new Set()
   const remoteConnections = new Set()
 
-  const localKp = new KeyManager(randomBytes(16)).getIdentityKeypair()
-  const remoteKp = new KeyManager(randomBytes(16)).getIdentityKeypair()
+  const localKp = keyManagerFixture(0).getIdentityKeypair()
+  const remoteKp = keyManagerFixture(1).getIdentityKeypair()
   const discovery = new LocalDiscovery({ identityKeypair: localKp })
   const { port } = await discovery.start()
 
@@ -132,8 +131,10 @@ async function testMultiple(t, { period, nPeers = 20 }) {
 
   /** @type {LocalDiscovery[]} */
   const peers = []
+  // Offset by 2 so these identities don't collide with the fixtures (0, 1)
+  // used by the single-peer tests earlier in this file.
   for (let i = 0; i < nPeers; i++) {
-    const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
+    const identityKeypair = keyManagerFixture(i + 2).getIdentityKeypair()
     const discovery = new LocalDiscovery({ identityKeypair })
     const peerId = keyToPublicId(identityKeypair.publicKey)
     peersById.set(peerId, discovery)

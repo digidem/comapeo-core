@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
+import { keyManagerFixture } from './helpers/key-manager.js'
 
 import { MemberApi } from '../src/member-api.js'
 import { LocalPeers } from '../src/local-peers.js'
@@ -338,7 +339,6 @@ class MockInviteLinksApiForProject {
 /**
  *
  * @param {Object} [opts]
- * @param {Buffer} [opts.rootKey]
  * @param {(url: string) => WebSocket} [opts.makeWebsocket]
  * @param {() => import('../src/types.js').ReplicationStream} [opts.getReplicationStream]
  * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} [opts.waitForInitialSyncWithPeer]
@@ -350,7 +350,6 @@ class MockInviteLinksApiForProject {
  * @returns
  */
 function setup({
-  rootKey = Buffer.alloc(16, 1),
   getProjectSettings = () =>
     Promise.resolve({ name: 'example', sendStats: false }),
   getDeviceInfo = () =>
@@ -370,7 +369,7 @@ function setup({
   inviteLinks,
   inviteLinkRPC = new MockInviteLinkRPC(),
 } = {}) {
-  const keyManager = new KeyManager(rootKey)
+  const keyManager = keyManagerFixture(0)
 
   const identityKeypair = keyManager.getIdentityKeypair()
   const encryptionKeys = { auth: randomBytes(32) }

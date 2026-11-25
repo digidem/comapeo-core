@@ -2,7 +2,8 @@ import createTestnet from 'hyperdht/testnet.js'
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { KeyManager, keyToPublicId } from '@mapeo/crypto'
+import { keyToPublicId } from '@comapeo/crypto'
+import { keyManagerFixture } from '../helpers/key-manager.js'
 import { pEvent } from 'p-event'
 import sodium from 'sodium-universal'
 import Protomux from 'protomux'
@@ -32,14 +33,10 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
     await testnet.destroy()
   })
 
-  const identityKeypair1 = new KeyManager(
-    Buffer.alloc(16, 1)
-  ).getIdentityKeypair()
-  const identityKeypair2 = new KeyManager(
-    Buffer.alloc(16, 2)
-  ).getIdentityKeypair()
-  const swarmKeypair1 = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
-  const swarmKeypair2 = new KeyManager(Buffer.alloc(16, 4)).getIdentityKeypair()
+  const identityKeypair1 = keyManagerFixture(1).getIdentityKeypair()
+  const identityKeypair2 = keyManagerFixture(2).getIdentityKeypair()
+  const swarmKeypair1 = keyManagerFixture(3).getIdentityKeypair()
+  const swarmKeypair2 = keyManagerFixture(4).getIdentityKeypair()
 
   const remoteDiscovery1 = new RemoteDiscovery({
     identityKeypair: identityKeypair1,
@@ -159,14 +156,10 @@ test('RemoteDiscovery - Able to reconnect after disconnecting', async (t) => {
     await testnet.destroy()
   })
 
-  const identityKeypair1 = new KeyManager(
-    Buffer.alloc(16, 1)
-  ).getIdentityKeypair()
-  const identityKeypair2 = new KeyManager(
-    Buffer.alloc(16, 2)
-  ).getIdentityKeypair()
-  const swarmKeypair1 = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
-  const swarmKeypair2 = new KeyManager(Buffer.alloc(16, 4)).getIdentityKeypair()
+  const identityKeypair1 = keyManagerFixture(1).getIdentityKeypair()
+  const identityKeypair2 = keyManagerFixture(2).getIdentityKeypair()
+  const swarmKeypair1 = keyManagerFixture(3).getIdentityKeypair()
+  const swarmKeypair2 = keyManagerFixture(4).getIdentityKeypair()
 
   const remoteDiscovery1 = new RemoteDiscovery({
     identityKeypair: identityKeypair1,
@@ -252,18 +245,12 @@ test('RemoteDiscovery - connect two peers to a third peer', async (t) => {
     await testnet.destroy()
   })
 
-  const identityKeypair1 = new KeyManager(
-    Buffer.alloc(16, 1)
-  ).getIdentityKeypair()
-  const identityKeypair2 = new KeyManager(
-    Buffer.alloc(16, 2)
-  ).getIdentityKeypair()
-  const identityKeypair3 = new KeyManager(
-    Buffer.alloc(16, 3)
-  ).getIdentityKeypair()
-  const swarmKeypair1 = new KeyManager(Buffer.alloc(16, 4)).getIdentityKeypair()
-  const swarmKeypair2 = new KeyManager(Buffer.alloc(16, 5)).getIdentityKeypair()
-  const swarmKeypair3 = new KeyManager(Buffer.alloc(16, 6)).getIdentityKeypair()
+  const identityKeypair1 = keyManagerFixture(1).getIdentityKeypair()
+  const identityKeypair2 = keyManagerFixture(2).getIdentityKeypair()
+  const identityKeypair3 = keyManagerFixture(3).getIdentityKeypair()
+  const swarmKeypair1 = keyManagerFixture(4).getIdentityKeypair()
+  const swarmKeypair2 = keyManagerFixture(5).getIdentityKeypair()
+  const swarmKeypair3 = keyManagerFixture(6).getIdentityKeypair()
 
   // Peer 1 is the "host" - two peers will connect to it
   const remoteDiscovery1 = new RemoteDiscovery({
@@ -416,10 +403,8 @@ test('RemoteDiscovery - emits AuthProtocolVersionMismatchError on invalid protoc
     await testnet.destroy()
   })
 
-  const identityKeypair = new KeyManager(
-    Buffer.alloc(16, 1)
-  ).getIdentityKeypair()
-  const swarmKeypair = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
+  const identityKeypair = keyManagerFixture(1).getIdentityKeypair()
+  const swarmKeypair = keyManagerFixture(3).getIdentityKeypair()
 
   const discovery = new RemoteDiscovery({
     identityKeypair,
@@ -455,13 +440,9 @@ test('RemoteDiscovery - emits AuthProtocolVersionMismatchError on invalid protoc
 })
 
 test('RemoteDiscovery - emits InvalidIdentityProofError on invalid signature', async (t) => {
-  const identityKeypair = new KeyManager(
-    Buffer.alloc(16, 1)
-  ).getIdentityKeypair()
-  const peerIdentityKeypair = new KeyManager(
-    Buffer.alloc(16, 2)
-  ).getIdentityKeypair()
-  const swarmKeypair = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
+  const identityKeypair = keyManagerFixture(1).getIdentityKeypair()
+  const peerIdentityKeypair = keyManagerFixture(2).getIdentityKeypair()
+  const swarmKeypair = keyManagerFixture(3).getIdentityKeypair()
   const handshakeHash = Buffer.alloc(32, 0)
 
   const discovery = new RemoteDiscovery({
@@ -506,13 +487,9 @@ test('RemoteDiscovery - emits InvalidIdentityProofError on invalid signature', a
 })
 
 test('RemoteDiscovery - valid auth handshake completes and emits connection', async (t) => {
-  const identityKeypair = new KeyManager(
-    Buffer.alloc(16, 1)
-  ).getIdentityKeypair()
-  const peerIdentityKeypair = new KeyManager(
-    Buffer.alloc(16, 2)
-  ).getIdentityKeypair()
-  const swarmKeypair = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
+  const identityKeypair = keyManagerFixture(1).getIdentityKeypair()
+  const peerIdentityKeypair = keyManagerFixture(2).getIdentityKeypair()
+  const swarmKeypair = keyManagerFixture(3).getIdentityKeypair()
   const handshakeHash = Buffer.alloc(32, 0)
 
   const discovery = new RemoteDiscovery({
@@ -572,13 +549,9 @@ function handleConnectionError(e) {
 }
 
 test('RemoteDiscovery - a peer that signs with the wrong role cap is not authenticated', async (t) => {
-  const identityKeypair = new KeyManager(
-    Buffer.alloc(16, 1)
-  ).getIdentityKeypair()
-  const peerIdentityKeypair = new KeyManager(
-    Buffer.alloc(16, 2)
-  ).getIdentityKeypair()
-  const swarmKeypair = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
+  const identityKeypair = keyManagerFixture(1).getIdentityKeypair()
+  const peerIdentityKeypair = keyManagerFixture(2).getIdentityKeypair()
+  const swarmKeypair = keyManagerFixture(3).getIdentityKeypair()
   const handshakeHash = Buffer.alloc(32, 0)
 
   const discovery = new RemoteDiscovery({
@@ -628,10 +601,8 @@ test('RemoteDiscovery - a peer that signs with the wrong role cap is not authent
 })
 
 test('RemoteDiscovery - a peer that reflects our identity proof is not authenticated', async (t) => {
-  const identityKeypair = new KeyManager(
-    Buffer.alloc(16, 1)
-  ).getIdentityKeypair()
-  const swarmKeypair = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
+  const identityKeypair = keyManagerFixture(1).getIdentityKeypair()
+  const swarmKeypair = keyManagerFixture(3).getIdentityKeypair()
 
   const discovery = new RemoteDiscovery({
     identityKeypair,

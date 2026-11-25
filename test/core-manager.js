@@ -6,7 +6,7 @@ import Hypercore from 'hypercore'
 import { createCoreManager, replicate } from './helpers/core-manager.js'
 import { randomBytes } from 'crypto'
 import Sqlite from 'better-sqlite3'
-import { KeyManager } from '@comapeo/crypto'
+import { keyManagerFixture } from './helpers/key-manager.js'
 import {
   CoreManager,
   kCoreManagerReplicate,
@@ -29,7 +29,7 @@ import { createCore } from './helpers/create-core.js'
 /** @import { Namespace } from '../src/types.js' */
 
 test('project creator auth core has project key', async function (t) {
-  const keyManager = new KeyManager(randomBytes(16))
+  const keyManager = keyManagerFixture(0)
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
 
@@ -206,7 +206,7 @@ test('close()', async (t) => {
 })
 
 test('Added cores are persisted', async (t) => {
-  const keyManager = new KeyManager(randomBytes(16))
+  const keyManager = keyManagerFixture(0)
   const projectKey = randomBytes(32)
 
   const db = drizzle(new Sqlite(':memory:'))
@@ -256,7 +256,7 @@ test('encryption', async (t) => {
 })
 
 test('poolSize limits number of open file descriptors', async (t) => {
-  const keyManager = new KeyManager(randomBytes(16))
+  const keyManager = keyManagerFixture(0)
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
 

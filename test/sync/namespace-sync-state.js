@@ -9,23 +9,21 @@ import {
   getKeys,
   replicate,
 } from '../helpers/core-manager.js'
-import { randomBytes } from 'crypto'
+import { keyManagerFixture } from '../helpers/key-manager.js'
 import { BlobStore } from '../../src/blob-store/index.js'
 
 test('sync cores in a namespace', async (t) => {
   const projectKeyPair = KeyManager.generateProjectKeypair()
-  const rootKey1 = randomBytes(16)
-  const rootKey2 = randomBytes(16)
-  const km1 = new KeyManager(rootKey1)
-  const km2 = new KeyManager(rootKey2)
+  const km1 = keyManagerFixture(0)
+  const km2 = keyManagerFixture(1)
 
   const cm1 = createCoreManager(t, {
-    rootKey: rootKey1,
+    keyManager: km1,
     projectKey: projectKeyPair.publicKey,
     projectSecretKey: projectKeyPair.secretKey,
   })
   const cm2 = createCoreManager(t, {
-    rootKey: rootKey2,
+    keyManager: km2,
     projectKey: projectKeyPair.publicKey,
   })
 

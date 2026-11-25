@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { KeyManager, sign } from '@comapeo/crypto'
+import { sign } from '@comapeo/crypto'
+import { keyManagerFixture } from './helpers/key-manager.js'
 import sodium from 'sodium-universal'
 import {
   mapAndValidateCoreOwnership,
@@ -166,7 +167,7 @@ test('getWinner (default)', () => {
 })
 
 function generateValidDoc() {
-  const km = new KeyManager(randomBytes(16))
+  const km = keyManagerFixture(0)
   const projectKey = randomBytes(32)
 
   const coreKeypairs = {
