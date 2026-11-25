@@ -291,7 +291,7 @@ test('deny: inviter denies the invite', async () => {
 
   // Failed requests persist in pending until the next createJoinRequest
   const failed = joiner.getJoinRequestById(ctx.inviteId.toString('hex'))
-  if (failed.status !== 'failed') throw new Error('expected failed status')
+  assert.equal(failed.status, 'failed', 'expected failed status')
   assert.ok(failed.error)
   assert.equal(joiner.getJoinRequests().length, 1)
 
