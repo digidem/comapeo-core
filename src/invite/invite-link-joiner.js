@@ -54,24 +54,66 @@ const TERMINAL_STATUSES = new Set(['completed', 'failed'])
  */
 
 /**
- * A join request initiated via an invite URL. Listen to `join-request-update`
- * events for progress.
- *
- * @typedef {object} JoinRequest
+ * @typedef {object} JoinRequestBase
  * @property {string} inviteId Hex invite ID
  * @property {string} swarmPublicKey Invitor's swarm public key
  * @property {string} url Original invite URL
  * @property {JoinRequestStatus} status Current status
- * @property {string|null} error Error code if status is 'failed'
- * @property {string|undefined} projectId Resolved project ID on completion
+ */
+
+/** @typedef {JoinRequestBase & { status: 'connecting' }} JoinRequestConnecting */
+
+/** @typedef {JoinRequestBase & { status: 'connected' }} JoinRequestConnected */
+
+/** @typedef {JoinRequestBase & { status: 'accepted' }} JoinRequestAccepted */
+
+/** @typedef {JoinRequestBase & { status: 'completed', projectId: string }} JoinRequestCompleted */
+
+/** @typedef {JoinRequestBase & { status: 'failed', error: string }} JoinRequestFailed */
+
+/**
+ * A join request initiated via an invite URL. Listen to `join-request-update`
+ * events for progress.
+ *
+ * `status` is a discriminant: `projectId` is only present when status is
+ * `completed`, and `error` (an error code) is only present when status is
+ * `failed`.
+ *
+ * @typedef {JoinRequestConnecting | JoinRequestConnected | JoinRequestAccepted | JoinRequestCompleted | JoinRequestFailed} JoinRequest
+ */
+
+/** @typedef {{ inviteId: string, status: 'connecting' }} JoinRequestUpdateConnecting */
+
+/** @typedef {{ inviteId: string, status: 'connected' }} JoinRequestUpdateConnected */
+
+/** @typedef {{ inviteId: string, status: 'accepted' }} JoinRequestUpdateAccepted */
+
+/** @typedef {{ inviteId: string, status: 'completed', projectId: string }} JoinRequestUpdateCompleted */
+
+/** @typedef {{ inviteId: string, status: 'failed', error: string }} JoinRequestUpdateFailed */
+
+/**
+ * An update emitted on the `join-request-update` event.
+ *
+ * `status` is a discriminant: `projectId` is only present when status is
+ * `completed`, and `error` (an error code) is only present when status is
+ * `failed`.
+ *
+ * @typedef {JoinRequestUpdateConnecting | JoinRequestUpdateConnected | JoinRequestUpdateAccepted | JoinRequestUpdateCompleted | JoinRequestUpdateFailed} JoinRequestUpdate
  */
 
 /**
- * @typedef {object} JoinRequestUpdate
- * @property {JoinRequestStatus} status
+ * The mutable record held for a join request while it runs. A superset of
+ * the public {@link JoinRequest} union — `error` and `projectId` are only
+ * meaningful once the request has failed/completed.
+ *
+ * @typedef {object} JoinRequestRecord
  * @property {string} inviteId
- * @property {string|null} [error] Error code if status is 'failed'
- * @property {string|undefined} [projectId]
+ * @property {string} swarmPublicKey
+ * @property {string} url
+ * @property {JoinRequestStatus} status
+ * @property {string|null} error Error code once status is 'failed'
+ * @property {string|undefined} projectId Resolved project ID once status is 'completed'
  */
 
 /**
@@ -103,7 +145,7 @@ const TERMINAL_STATUSES = new Set(['completed', 'failed'])
 /**
  * @typedef {object} PendingJoinRequest
  * @property {AbortController} abortController
- * @property {JoinRequest} joinRequest
+ * @property {JoinRequestRecord} joinRequest
  */
 
 /**
@@ -171,7 +213,7 @@ export class InviteLinkJoiner extends TypedEmitter {
     }
 
     const redeemAbortController = new AbortController()
-    /** @type {JoinRequest} */
+    /** @type {JoinRequestRecord} */
     const joinRequest = {
       inviteId,
       swarmPublicKey: parsed.swarmPublicKey,
@@ -190,11 +232,11 @@ export class InviteLinkJoiner extends TypedEmitter {
     // Start the async flow (fire-and-forget)
     this.#runJoinFlow(joinRequest, parsed, timeout, redeemAbortController)
 
-    return joinRequest
+    return /** @type {JoinRequest} */ (joinRequest)
   }
 
   /**
-   * @param {JoinRequest} joinRequest
+   * @param {JoinRequestRecord} joinRequest
    * @param {ReturnType<typeof parseInviteURL>} parsed
    * @param {number} timeout
    * @param {AbortController} redeemAbortController
@@ -334,16 +376,24 @@ export class InviteLinkJoiner extends TypedEmitter {
   }
 
   /**
-   * @param {JoinRequest} joinRequest
+   * @param {JoinRequestRecord} joinRequest
    */
   #emitUpdate(joinRequest) {
-    /** @type {JoinRequestUpdate} */
-    const update = {
-      status: joinRequest.status,
-      inviteId: joinRequest.inviteId,
-      error: joinRequest.error,
-      projectId: joinRequest.projectId,
-    }
+    // Only include the fields that the status variant owns
+    const update =
+      joinRequest.status === 'failed'
+        ? {
+            status: joinRequest.status,
+            inviteId: joinRequest.inviteId,
+            error: /** @type {string} */ (joinRequest.error),
+          }
+        : joinRequest.status === 'completed'
+        ? {
+            status: joinRequest.status,
+            inviteId: joinRequest.inviteId,
+            projectId: /** @type {string} */ (joinRequest.projectId),
+          }
+        : { status: joinRequest.status, inviteId: joinRequest.inviteId }
     this.emit('join-request-update', update)
   }
 
@@ -359,7 +409,7 @@ export class InviteLinkJoiner extends TypedEmitter {
     if (!pending) {
       throw new JoinRequestNotFoundError({ inviteId })
     }
-    return pending.joinRequest
+    return /** @type {JoinRequest} */ (pending.joinRequest)
   }
 
   /**
@@ -370,7 +420,9 @@ export class InviteLinkJoiner extends TypedEmitter {
    * @returns {JoinRequest[]}
    */
   getJoinRequests() {
-    return [...this.#requests.values()].map((p) => p.joinRequest)
+    return [...this.#requests.values()].map(
+      (p) => /** @type {JoinRequest} */ (p.joinRequest)
+    )
   }
 
   /**

@@ -188,7 +188,9 @@ test('happy path: connect, redeem, accept, complete', async () => {
 
   // No error is emitted as a separate parameter
   assert.equal(lastError, undefined)
-  assert.equal(updates[3].projectId, ctx.projectId)
+  const completedUpdate = updates.find((u) => u.status === 'completed')
+  assert.ok(completedUpdate)
+  assert.equal(completedUpdate.projectId, ctx.projectId)
 
   // Verify waitForPeer was called with identity key (not swarm key)
   assert.deepEqual(mockRpc.waitForPeerCalls, [identityKey])
@@ -289,7 +291,7 @@ test('deny: inviter denies the invite', async () => {
 
   // Failed requests persist in pending until the next createJoinRequest
   const failed = joiner.getJoinRequestById(ctx.inviteId.toString('hex'))
-  assert.equal(failed.status, 'failed')
+  if (failed.status !== 'failed') throw new Error('expected failed status')
   assert.ok(failed.error)
   assert.equal(joiner.getJoinRequests().length, 1)
 
@@ -634,7 +636,7 @@ test('cancel leaves the request in the list as failed', async () => {
 
   // The cancelled request lingers in the list as failed (it is not removed)
   const cancelled = joiner.getJoinRequestById(inviteId)
-  assert.equal(cancelled.status, 'failed')
+  if (cancelled.status !== 'failed') throw new Error('expected failed status')
   assert.equal(cancelled.error, JoinProjectCancelledError.code)
 
   ctx.connection.end()

@@ -37,7 +37,7 @@ import { LocalPeers } from '../src/local-peers.js'
  * @param {import('../src/invite/invite-link-joiner.js').InviteLinkJoiner} joiner
  * @param {string} inviteId
  * @param {{ timeout?: number }} [opts]
- * @returns {Promise<import('../src/invite/invite-link-joiner.js').JoinRequestUpdate>}
+ * @returns {Promise<Extract<import('../src/invite/invite-link-joiner.js').JoinRequestUpdate, { status: 'completed' }>>}
  */
 function awaitJoinComplete(joiner, inviteId, opts = {}) {
   const { timeout } = opts
@@ -55,7 +55,12 @@ function awaitJoinComplete(joiner, inviteId, opts = {}) {
   // Only one of these fires for a given inviteId; swallow the loser's timeout.
   onCompleted.catch(() => {})
   onError.catch(() => {})
-  return Promise.race([onCompleted, onError])
+  return Promise.race([onCompleted, onError]).then((result) => {
+    if (result.status !== 'completed') {
+      throw new Error('expected completed update')
+    }
+    return result
+  })
 }
 
 test('invite over internet and join from URL', async (t) => {
