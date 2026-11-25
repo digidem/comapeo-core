@@ -4,3 +4,4 @@
 - [Getting set up](setup.md)
 - [Contribution guidelines](../../CONTRIBUTING.md)
 - [Testing](testing.md)
+- [Events (TypedEmitter)](events.md)

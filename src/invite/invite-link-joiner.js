@@ -2,8 +2,9 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { pEvent } from 'p-event'
 import { parseInviteURL } from './invite-urls.js'
 import {
+  AlreadyJoinedError,
   ExistingJoinRequestError,
-  InviteRedeemConnectionClosedError,
+  ConnectionLostError,
   InviteConnectionError,
   JoinRequestNotFoundError,
   JoinProjectCancelledError,
@@ -15,8 +16,10 @@ import {
   InitialSyncFailedError,
   ensureKnownError,
   InviteDeniedByInviterError,
+  UnknownInviteIDError,
   InviteExpiredError,
 } from '../errors.js'
+import { DenyInviteOverInternet_DenyReason } from '../generated/invite.js'
 
 /**
  * Error codes that indicate a network/transport failure
@@ -24,7 +27,6 @@ import {
  */
 const NETWORK_ERROR_CODES = new Set([
   TimeoutError.code,
-  InviteRedeemConnectionClosedError.code,
   PeerDisconnectedError.code,
   RPCDisconnectBeforeSendingError.code,
   RPCDisconnectBeforeAckError.code,
@@ -32,36 +34,52 @@ const NETWORK_ERROR_CODES = new Set([
   InitialSyncFailedError.code,
 ])
 
+/**
+ * Join request statuses that are final — a request in one of these is no
+ * longer in flight and its entry may be replaced by a new attempt.
+ * @type {Set<JoinRequestStatus>}
+ */
+const TERMINAL_STATUSES = new Set(['completed', 'failed'])
+
 /** @import {
   AcceptInviteOverInternet,
   DenyInviteOverInternet,
 } from '../generated/invite.js' */
 /** @import { InviteApi } from '../invite/invite-api.js' */
 /** @import { InviteLinkRPC } from '../invite/invite-link-rpc.js' */
+/** @import { KnownError } from '../errors.js' */
 
 /**
  * @typedef {'connecting' | 'connected' | 'accepted' | 'completed' | 'failed'} JoinRequestStatus
  */
 
 /**
- * A join request initiated via an invite URL. Listen to `join-request-update`
- * events for progress.
- *
- * @typedef {object} JoinRequest
+ * @typedef {object} JoinRequestBase
  * @property {string} inviteId Hex invite ID
  * @property {string} swarmPublicKey Invitor's swarm public key
  * @property {string} url Original invite URL
  * @property {JoinRequestStatus} status Current status
- * @property {Error|null} error Error if status is 'failed'
- * @property {string|undefined} projectId Resolved project ID on completion
  */
 
+/** @typedef {JoinRequestBase & { status: 'connecting' }} JoinRequestConnecting */
+
+/** @typedef {JoinRequestBase & { status: 'connected' }} JoinRequestConnected */
+
+/** @typedef {JoinRequestBase & { status: 'accepted' }} JoinRequestAccepted */
+
+/** @typedef {JoinRequestBase & { status: 'completed', projectId: string }} JoinRequestCompleted */
+
+/** @typedef {JoinRequestBase & { status: 'failed', error: string }} JoinRequestFailed */
+
 /**
- * @typedef {object} JoinRequestUpdate
- * @property {JoinRequestStatus} status
- * @property {string} inviteId
- * @property {Error|null} [error]
- * @property {string|undefined} [projectId]
+ * A join request initiated via an invite URL. Listen to `join-request-update`
+ * events for progress.
+ *
+ * `status` is a discriminant: `projectId` is only present when status is
+ * `completed`, and `error` (an error code) is only present when status is
+ * `failed`.
+ *
+ * @typedef {JoinRequestConnecting | JoinRequestConnected | JoinRequestAccepted | JoinRequestCompleted | JoinRequestFailed} JoinRequest
  */
 
 /**
@@ -86,7 +104,8 @@ const NETWORK_ERROR_CODES = new Set([
 
 /**
  * @typedef {object} InviteLinkJoinerEvents
- * @property {(update: JoinRequestUpdate) => void} join-request-update
+ * @property {(update: JoinRequest) => void} join-request-update
+ * @property {(error: KnownError & { inviteId: string }) => void} join-request-error
  */
 
 /**
@@ -110,7 +129,7 @@ export class InviteLinkJoiner extends TypedEmitter {
   /** @type {number} */
   #defaultTimeout
   /** @type {Map<string, PendingJoinRequest>} */
-  #pending = new Map()
+  #requests = new Map()
 
   /**
    * @param {InviteLinkJoinerOptions} options
@@ -133,6 +152,11 @@ export class InviteLinkJoiner extends TypedEmitter {
   /**
    * Create and start a join request from an invite URL.
    *
+   * An in-flight request for the same invite ID throws
+   * `ExistingJoinRequestError`. A finished (`failed`/`completed`) request for
+   * the same invite ID is replaced with a fresh attempt, and finished
+   * requests for other invite IDs are left in place.
+   *
    * @param {string} url Invite URL
    * @param {object} [opts]
    * @param {number} [opts.timeout] Connection timeout in ms
@@ -147,40 +171,41 @@ export class InviteLinkJoiner extends TypedEmitter {
     }
     const inviteId = parsed.inviteIdString
 
-    if (this.#pending.has(inviteId)) {
+    // An in-flight request for this invite ID cannot be started again; a
+    // finished (terminal) one is replaced so the link can be re-clicked.
+    const existing = this.#requests.get(inviteId)
+    if (existing && !TERMINAL_STATUSES.has(existing.joinRequest.status)) {
       throw new ExistingJoinRequestError({ inviteId })
     }
 
     const redeemAbortController = new AbortController()
-    /** @type {JoinRequest} */
-    const joinRequest = {
-      inviteId,
-      swarmPublicKey: parsed.swarmPublicKey,
-      url,
-      status: 'connecting',
-      error: null,
-      projectId: undefined,
-    }
-    this.#pending.set(inviteId, {
+    /** @type {PendingJoinRequest} */
+    const pending = {
       abortController: redeemAbortController,
-      joinRequest,
-    })
+      joinRequest: {
+        inviteId,
+        swarmPublicKey: parsed.swarmPublicKey,
+        url,
+        status: 'connecting',
+      },
+    }
+    this.#requests.set(inviteId, pending)
 
-    this.#emitUpdate(joinRequest)
+    this.emit('join-request-update', pending.joinRequest)
 
     // Start the async flow (fire-and-forget)
-    this.#runJoinFlow(joinRequest, parsed, timeout, redeemAbortController)
+    this.#runJoinFlow(pending, parsed, timeout, redeemAbortController)
 
-    return joinRequest
+    return pending.joinRequest
   }
 
   /**
-   * @param {JoinRequest} joinRequest
+   * @param {PendingJoinRequest} pending
    * @param {ReturnType<typeof parseInviteURL>} parsed
    * @param {number} timeout
    * @param {AbortController} redeemAbortController
    */
-  async #runJoinFlow(joinRequest, parsed, timeout, redeemAbortController) {
+  async #runJoinFlow(pending, parsed, timeout, redeemAbortController) {
     const { inviteIdString, swarmPublicKey } = parsed
     const inviteIdBuffer = Buffer.from(inviteIdString, 'hex')
     const signal = redeemAbortController.signal
@@ -199,13 +224,15 @@ export class InviteLinkJoiner extends TypedEmitter {
         { once: true }
       )
 
+      // Once the redeem has been sent and ack'd, a closed connection means the
+      // join can no longer complete.
       const onClose = pEvent(connection, 'close').then(
         () => {
-          throw new InviteRedeemConnectionClosedError()
+          throw new ConnectionLostError()
         },
         // Handle `error` event on connection if there's sudden closes
         (e) => {
-          throw new InviteRedeemConnectionClosedError({ cause: e })
+          throw new ConnectionLostError({ cause: e })
         }
       )
       // It's okay if this rejection never gets handled
@@ -218,8 +245,8 @@ export class InviteLinkJoiner extends TypedEmitter {
       await this.#inviteLinkRPC.waitForPeer(identityPublicKeyHex)
 
       // Connected
-      joinRequest.status = 'connected'
-      this.#emitUpdate(joinRequest)
+      pending.joinRequest = { ...pending.joinRequest, status: 'connected' }
+      this.emit('join-request-update', pending.joinRequest)
 
       const onInvited = pEvent(this.#inviteApi, 'invite-received', {
         filter: (invite) => invite.invitorDeviceId === identityPublicKeyHex,
@@ -241,7 +268,13 @@ export class InviteLinkJoiner extends TypedEmitter {
         signal,
       }).then(async ({ reason }) => {
         await this.#inviteLinkRPC.denyAck(inviteIdBuffer, identityPublicKeyHex)
-        throw new InviteDeniedByInviterError({ reason })
+        if (reason === DenyInviteOverInternet_DenyReason.unknown_invite_id) {
+          throw new UnknownInviteIDError()
+        }
+        if (reason === DenyInviteOverInternet_DenyReason.already_joined) {
+          throw new AlreadyJoinedError()
+        }
+        throw new InviteDeniedByInviterError()
       })
       onDeny.catch(noop)
 
@@ -264,27 +297,39 @@ export class InviteLinkJoiner extends TypedEmitter {
       await this.#inviteLinkRPC.acceptAck(inviteIdBuffer, identityPublicKeyHex)
 
       // Accepted
-      joinRequest.status = 'accepted'
-      this.#emitUpdate(joinRequest)
+      pending.joinRequest = { ...pending.joinRequest, status: 'accepted' }
+      this.emit('join-request-update', pending.joinRequest)
 
       // Race: wait for invite vs connection close
       const invite = await Promise.race([onInvited, onClose])
 
-      const projectId = await this.#inviteApi.accept(
+      const joinProject = this.#inviteApi.accept(
         /** @type {{ inviteId: string }} */ (invite)
       )
+      // A dropped connection during the join's initial sync is a connection
+      // loss, not a sync failure.
+      const projectId = await Promise.race([joinProject, onClose])
+      joinProject.catch(noop)
 
       // Completed
-      joinRequest.status = 'completed'
-      joinRequest.projectId = projectId
-      this.#emitUpdate(joinRequest)
+      pending.joinRequest = {
+        ...pending.joinRequest,
+        status: 'completed',
+        projectId,
+      }
+      this.emit('join-request-update', pending.joinRequest)
 
       connection.end()
     } catch (e) {
       // Failed
-      joinRequest.status = 'failed'
-      joinRequest.error = wrapNetworkError(e)
-      this.#emitUpdate(joinRequest)
+      const error = wrapNetworkError(e, pending.joinRequest.inviteId)
+      pending.joinRequest = {
+        ...pending.joinRequest,
+        status: 'failed',
+        error: error.code,
+      }
+      this.emit('join-request-update', pending.joinRequest)
+      this.emit('join-request-error', error)
 
       if (connection) {
         // Use the identity key from the handshake, not the swarm key from the URL
@@ -297,23 +342,7 @@ export class InviteLinkJoiner extends TypedEmitter {
           // ignore disconnect errors
         }
       }
-    } finally {
-      this.#pending.delete(inviteIdString)
     }
-  }
-
-  /**
-   * @param {JoinRequest} joinRequest
-   */
-  #emitUpdate(joinRequest) {
-    /** @type {JoinRequestUpdate} */
-    const update = {
-      status: joinRequest.status,
-      inviteId: joinRequest.inviteId,
-      error: joinRequest.error,
-      projectId: joinRequest.projectId,
-    }
-    this.emit('join-request-update', update)
   }
 
   /**
@@ -324,7 +353,7 @@ export class InviteLinkJoiner extends TypedEmitter {
    * @throws {JoinRequestNotFoundError}
    */
   getJoinRequestById(inviteId) {
-    const pending = this.#pending.get(inviteId)
+    const pending = this.#requests.get(inviteId)
     if (!pending) {
       throw new JoinRequestNotFoundError({ inviteId })
     }
@@ -332,28 +361,32 @@ export class InviteLinkJoiner extends TypedEmitter {
   }
 
   /**
-   * Get all active (in-flight) join requests.
+   * Get all join requests, both in-flight and finished (`failed`/`completed`).
+   * Finished requests persist until their entry is replaced by a new
+   * {@link InviteLinkJoiner.createJoinRequest} for the same invite ID.
    *
    * @returns {JoinRequest[]}
    */
   getJoinRequests() {
-    return [...this.#pending.values()].map((p) => p.joinRequest)
+    return [...this.#requests.values()].map((p) => p.joinRequest)
   }
 
   /**
    * Cancel an in-flight join request.
+   *
+   * The request transitions to `failed` (with `JoinProjectCancelledError`) and
+   * remains in the list — it is not removed.
    *
    * @param {string} inviteId Hex invite ID
    * @param {Error} [reason] Reason for cancellation. Defaults to a generic cancellation error.
    * @returns {void}
    */
   cancelJoinRequest(inviteId, reason) {
-    const pending = this.#pending.get(inviteId)
+    const pending = this.#requests.get(inviteId)
     if (!pending) {
       throw new JoinRequestNotFoundError({ inviteId })
     }
     pending.abortController.abort(reason ?? new JoinProjectCancelledError())
-    this.#pending.delete(inviteId)
   }
 }
 
@@ -363,12 +396,20 @@ function noop(_x) {}
 /**
  * Wrap network/transport errors in an InviteConnectionError, pass others through.
  * @param {unknown} e
- * @returns {Error}
+ * @returns {KnownError}
  */
-function wrapNetworkError(e) {
+/**
+ * Wrap a join-flow error as a KnownError carrying the inviteId, so concurrent
+ * join requests can be told apart on the `join-request-error` event.
+ *
+ * @param {unknown} e
+ * @param {string} inviteId
+ * @returns {KnownError & { inviteId: string }}
+ */
+function wrapNetworkError(e, inviteId) {
   const err = ensureKnownError(e)
-  if (NETWORK_ERROR_CODES.has(err.code)) {
-    return new InviteConnectionError({ cause: err })
-  }
-  return err
+  const wrapped = NETWORK_ERROR_CODES.has(err.code)
+    ? new InviteConnectionError({ cause: err })
+    : err
+  return Object.assign(wrapped, { inviteId })
 }
