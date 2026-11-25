@@ -14,6 +14,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { getProperty } from 'dot-prop-extra'
 
 import { MapeoManager, roles } from '../src/index.js'
+import { masterKeyFor } from '../test/helpers/key-manager.js'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import { createHash, randomBytes, randomInt } from 'node:crypto'
@@ -217,6 +218,12 @@ export async function waitForPeers(
 }
 
 /**
+ * Per-process counter for `createManagers` identities. Modulo 255 so it wraps;
+ * no single test ever creates enough managers to collide.
+ */
+let identityCounter = 0
+
+/**
  * Create `count` manager instances. Each instance has a deterministic identity
  * keypair so device IDs should be consistent between tests.
  *
@@ -246,10 +253,15 @@ export async function createManagers(
     Array(count)
       .fill(null)
       .map(async (_, i) => {
-        const opts = testnet
-          ? { ...overrides, swarm: { dht: testnet.nodes[0] } }
-          : overrides
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
+        const opts = {
+          ...overrides,
+          // Pre-derive the master key (per-process counter, wraps at 255) so
+          // spawning N managers skips N Argon2 KDFs. Explicit override wins.
+          masterKey:
+            overrides.masterKey ?? masterKeyFor(identityCounter++ % 255),
+          ...(testnet ? { swarm: { dht: testnet.nodes[0] } } : {}),
+        }
         const manager = createManager(name, t, opts)
         await manager.setDeviceInfo({ name, deviceType })
         return manager

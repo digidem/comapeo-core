@@ -13,7 +13,7 @@ const ROOT_KEY = Buffer.alloc(16)
  * @param {number} index
  * @returns {Buffer} 32-byte master key
  */
-function masterKeyFor(index) {
+export function masterKeyFor(index) {
   if (!Number.isInteger(index) || index < 0 || index > 254) {
     throw new RangeError(
       'cannot create more than 254 identities (index must be 0-254)'
