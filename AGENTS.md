@@ -185,7 +185,10 @@ streams of that shape.
   `deviceKeyFixture(i)`) instead of `new KeyManager(...)`. It supplies a pre-derived
   master key so tests skip the Argon2 KDF the `KeyManager` constructor runs. In tests the
   master key alone defines identity — the root key's value is irrelevant (only
-  `getIdentityBackupCode()` reads it, which tests never call). Indices run 0–254.
+  `getIdentityBackupCode()` reads it, which tests never call). Indices run 0–254. E2e
+  `createManagers` does this automatically (a per-process counter via `masterKeyFor`,
+  wrapping at 255); single `createManager` keeps the real KDF so cross-version tests can
+  match an old build's identity.
 - `test/helpers/` has shared builders: `create-core.js`, `core-manager.js`,
   `blob-store.js`, `local-peers.js`, `events.js`, `default-config.js`,
   `key-manager.js`. Use them rather than re-wiring cores/DBs by hand.
