@@ -121,7 +121,7 @@ export class InviteLinkJoiner extends TypedEmitter {
   /** @type {number} */
   #defaultTimeout
   /** @type {Map<string, PendingJoinRequest>} */
-  #pending = new Map()
+  #requests = new Map()
 
   /**
    * @param {InviteLinkJoinerOptions} options
@@ -165,7 +165,7 @@ export class InviteLinkJoiner extends TypedEmitter {
 
     // An in-flight request for this invite ID cannot be started again; a
     // finished (terminal) one is replaced so the link can be re-clicked.
-    const existing = this.#pending.get(inviteId)
+    const existing = this.#requests.get(inviteId)
     if (existing && !TERMINAL_STATUSES.has(existing.joinRequest.status)) {
       throw new ExistingJoinRequestError({ inviteId })
     }
@@ -180,7 +180,7 @@ export class InviteLinkJoiner extends TypedEmitter {
       error: null,
       projectId: undefined,
     }
-    this.#pending.set(inviteId, {
+    this.#requests.set(inviteId, {
       abortController: redeemAbortController,
       joinRequest,
     })
@@ -355,7 +355,7 @@ export class InviteLinkJoiner extends TypedEmitter {
    * @throws {JoinRequestNotFoundError}
    */
   getJoinRequestById(inviteId) {
-    const pending = this.#pending.get(inviteId)
+    const pending = this.#requests.get(inviteId)
     if (!pending) {
       throw new JoinRequestNotFoundError({ inviteId })
     }
@@ -370,7 +370,7 @@ export class InviteLinkJoiner extends TypedEmitter {
    * @returns {JoinRequest[]}
    */
   getJoinRequests() {
-    return [...this.#pending.values()].map((p) => p.joinRequest)
+    return [...this.#requests.values()].map((p) => p.joinRequest)
   }
 
   /**
@@ -384,7 +384,7 @@ export class InviteLinkJoiner extends TypedEmitter {
    * @returns {void}
    */
   cancelJoinRequest(inviteId, reason) {
-    const pending = this.#pending.get(inviteId)
+    const pending = this.#requests.get(inviteId)
     if (!pending) {
       throw new JoinRequestNotFoundError({ inviteId })
     }
