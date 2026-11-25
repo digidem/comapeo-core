@@ -181,9 +181,14 @@ streams of that shape.
 - **In-memory storage for speed & isolation:** SQLite via `new Database(':memory:')` and
   cores via `random-access-memory` (`RAM`). Migrations run from
   `new URL('../drizzle/project', import.meta.url).pathname` (and `client` where relevant).
+- **Device identities:** use `test/helpers/key-manager.js` (`keyManagerFixture(i)` /
+  `deviceKeyFixture(i)`) instead of `new KeyManager(...)`. It supplies a pre-derived
+  master key so tests skip the Argon2 KDF the `KeyManager` constructor runs. In tests the
+  master key alone defines identity — the root key's value is irrelevant (only
+  `getIdentityBackupCode()` reads it, which tests never call). Indices run 0–254.
 - `test/helpers/` has shared builders: `create-core.js`, `core-manager.js`,
-  `blob-store.js`, `local-peers.js`, `events.js`, `default-config.js`. Use them rather than
-  re-wiring cores/DBs by hand.
+  `blob-store.js`, `local-peers.js`, `events.js`, `default-config.js`,
+  `key-manager.js`. Use them rather than re-wiring cores/DBs by hand.
 - Unit tests mirror source layout (e.g. `test/data-type.js` for `src/datatype/`);
   multi-device/cross-version scenarios go in `test-e2e/`.
 - Run one file: `node --test test/data-type.js`.
@@ -264,3 +269,14 @@ yes, update it.
 - **`node:assert` is banned** by lint — always `node:assert/strict`.
 - **Tests must not touch the network or real disk.** Use `:memory:` SQLite, `RAM` cores,
   and injected fakes (`makeWebsocket`, `coreStorage`, `swarm`).
+- **Fixture identities must not collide within one shared discovery network.** If a test
+  creates several peers that share a network (e.g. `LocalDiscovery`'s UDP broadcast), give
+  each a distinct `keyManagerFixture(i)` index — and don't reuse the low indices (`0`/`1`)
+  already hardcoded by earlier single-peer tests in the same file, or a lingering peer with
+  the same identity can steal a connection (see `test/discovery/local-discovery.js`, which
+  offsets its multi-peer loop for this reason).
+- **Don't use the key fixture where identity must match a real KDF.** `createManager`
+  (e2e) derives identity from its `seed` via the real KDF, and cross-version tests
+  (`migration.js`) need the new- and old-version managers to share that exact identity
+  (project keys are encrypted with it). Pass the fixture's `{ rootKey, masterKey }` only to
+  current-version managers that don't interoperate with an old build.
