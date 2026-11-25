@@ -82,26 +82,6 @@ const TERMINAL_STATUSES = new Set(['completed', 'failed'])
  * @typedef {JoinRequestConnecting | JoinRequestConnected | JoinRequestAccepted | JoinRequestCompleted | JoinRequestFailed} JoinRequest
  */
 
-/** @typedef {{ inviteId: string, status: 'connecting' }} JoinRequestUpdateConnecting */
-
-/** @typedef {{ inviteId: string, status: 'connected' }} JoinRequestUpdateConnected */
-
-/** @typedef {{ inviteId: string, status: 'accepted' }} JoinRequestUpdateAccepted */
-
-/** @typedef {{ inviteId: string, status: 'completed', projectId: string }} JoinRequestUpdateCompleted */
-
-/** @typedef {{ inviteId: string, status: 'failed', error: string }} JoinRequestUpdateFailed */
-
-/**
- * An update emitted on the `join-request-update` event.
- *
- * `status` is a discriminant: `projectId` is only present when status is
- * `completed`, and `error` (an error code) is only present when status is
- * `failed`.
- *
- * @typedef {JoinRequestUpdateConnecting | JoinRequestUpdateConnected | JoinRequestUpdateAccepted | JoinRequestUpdateCompleted | JoinRequestUpdateFailed} JoinRequestUpdate
- */
-
 /**
  * @typedef {object} ConnectPeerOptions
  * @property {number} [timeout]
@@ -124,7 +104,7 @@ const TERMINAL_STATUSES = new Set(['completed', 'failed'])
 
 /**
  * @typedef {object} InviteLinkJoinerEvents
- * @property {(update: JoinRequestUpdate) => void} join-request-update
+ * @property {(update: JoinRequest) => void} join-request-update
  * @property {(error: KnownError & { inviteId: string }) => void} join-request-error
  */
 
@@ -211,7 +191,7 @@ export class InviteLinkJoiner extends TypedEmitter {
     }
     this.#requests.set(inviteId, pending)
 
-    this.#emitUpdate(pending.joinRequest)
+    this.emit('join-request-update', pending.joinRequest)
 
     // Start the async flow (fire-and-forget)
     this.#runJoinFlow(pending, parsed, timeout, redeemAbortController)
@@ -266,7 +246,7 @@ export class InviteLinkJoiner extends TypedEmitter {
 
       // Connected
       pending.joinRequest = { ...pending.joinRequest, status: 'connected' }
-      this.#emitUpdate(pending.joinRequest)
+      this.emit('join-request-update', pending.joinRequest)
 
       const onInvited = pEvent(this.#inviteApi, 'invite-received', {
         filter: (invite) => invite.invitorDeviceId === identityPublicKeyHex,
@@ -318,7 +298,7 @@ export class InviteLinkJoiner extends TypedEmitter {
 
       // Accepted
       pending.joinRequest = { ...pending.joinRequest, status: 'accepted' }
-      this.#emitUpdate(pending.joinRequest)
+      this.emit('join-request-update', pending.joinRequest)
 
       // Race: wait for invite vs connection close
       const invite = await Promise.race([onInvited, onClose])
@@ -337,7 +317,7 @@ export class InviteLinkJoiner extends TypedEmitter {
         status: 'completed',
         projectId,
       }
-      this.#emitUpdate(pending.joinRequest)
+      this.emit('join-request-update', pending.joinRequest)
 
       connection.end()
     } catch (e) {
@@ -348,7 +328,7 @@ export class InviteLinkJoiner extends TypedEmitter {
         status: 'failed',
         error: error.code,
       }
-      this.#emitUpdate(pending.joinRequest)
+      this.emit('join-request-update', pending.joinRequest)
       this.emit('join-request-error', error)
 
       if (connection) {
@@ -363,31 +343,6 @@ export class InviteLinkJoiner extends TypedEmitter {
         }
       }
     }
-  }
-
-  /**
-   * @param {JoinRequest} joinRequest
-   */
-  #emitUpdate(joinRequest) {
-    // Only include the fields that the status variant owns
-    const update =
-      joinRequest.status === 'failed'
-        ? {
-            status: joinRequest.status,
-            inviteId: joinRequest.inviteId,
-            error: joinRequest.error,
-          }
-        : joinRequest.status === 'completed'
-        ? {
-            status: joinRequest.status,
-            inviteId: joinRequest.inviteId,
-            projectId: joinRequest.projectId,
-          }
-        : {
-            status: joinRequest.status,
-            inviteId: joinRequest.inviteId,
-          }
-    this.emit('join-request-update', update)
   }
 
   /**

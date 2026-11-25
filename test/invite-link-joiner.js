@@ -19,7 +19,7 @@ import {
 
 /** @import { RemoteAuthedNoiseStream } from '../src/discovery/remote-discovery.js' */
 /** @import { Invite, InviteApi } from '../src/invite/invite-api.js' */
-/** @import { JoinRequestUpdate } from '../src/invite/invite-link-joiner.js' */
+/** @import { JoinRequest } from '../src/invite/invite-link-joiner.js' */
 /** @import { KnownError } from '../src/errors.js' */
 
 /**
@@ -147,7 +147,7 @@ test('happy path: connect, redeem, accept, complete', async () => {
     getDeviceInfo: async () => ({ name: 'invitee' }),
   })
 
-  /** @type {JoinRequestUpdate[]} */
+  /** @type {JoinRequest[]} */
   const updates = []
   /** @type {KnownError|undefined} */
   let lastError
@@ -238,7 +238,7 @@ test('deny: inviter denies the invite', async () => {
     getDeviceInfo: async () => ({ name: 'invitee' }),
   })
 
-  /** @type {JoinRequestUpdate[]} */
+  /** @type {JoinRequest[]} */
   const updates = []
   /** @type {KnownError|undefined} */
   let lastError
@@ -314,7 +314,7 @@ test('deny: inviter auto-denies an already-joined peer', async () => {
     getDeviceInfo: async () => ({ name: 'invitee' }),
   })
 
-  /** @type {JoinRequestUpdate[]} */
+  /** @type {JoinRequest[]} */
   const updates = []
   /** @type {KnownError|undefined} */
   let lastError
@@ -361,7 +361,7 @@ test('connection close: peer disconnects after redeem', async () => {
     getDeviceInfo: async () => ({ name: 'invitee' }),
   })
 
-  /** @type {JoinRequestUpdate[]} */
+  /** @type {JoinRequest[]} */
   const updates = []
   /** @type {KnownError|undefined} */
   let lastError
@@ -430,7 +430,7 @@ test('connection close: peer disconnects during initial sync', async () => {
     getDeviceInfo: async () => ({ name: 'invitee' }),
   })
 
-  /** @type {JoinRequestUpdate[]} */
+  /** @type {JoinRequest[]} */
   const updates = []
   /** @type {KnownError|undefined} */
   let lastError

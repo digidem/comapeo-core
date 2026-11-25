@@ -37,7 +37,7 @@ import { LocalPeers } from '../src/local-peers.js'
  * @param {import('../src/invite/invite-link-joiner.js').InviteLinkJoiner} joiner
  * @param {string} inviteId
  * @param {{ timeout?: number }} [opts]
- * @returns {Promise<Extract<import('../src/invite/invite-link-joiner.js').JoinRequestUpdate, { status: 'completed' }>>}
+ * @returns {Promise<Extract<import('../src/invite/invite-link-joiner.js').JoinRequest, { status: 'completed' }>>}
  */
 function awaitJoinComplete(joiner, inviteId, opts = {}) {
   const { timeout } = opts

@@ -48,7 +48,6 @@ export { MapeoManager } from './mapeo-manager.js'
 /**
  * @namespace InviteLinkJoiner
  * @typedef {import('./invite/invite-link-joiner.js').JoinRequest} InviteLinkJoiner.JoinRequest
- * @typedef {import('./invite/invite-link-joiner.js').JoinRequestUpdate} InviteLinkJoiner.JoinRequestUpdate
  */
 /**
  * @param {MapeoProject} project
