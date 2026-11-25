@@ -103,20 +103,6 @@ const TERMINAL_STATUSES = new Set(['completed', 'failed'])
  */
 
 /**
- * The mutable record held for a join request while it runs. A superset of
- * the public {@link JoinRequest} union — `error` and `projectId` are only
- * meaningful once the request has failed/completed.
- *
- * @typedef {object} JoinRequestRecord
- * @property {string} inviteId
- * @property {string} swarmPublicKey
- * @property {string} url
- * @property {JoinRequestStatus} status
- * @property {string|null} error Error code once status is 'failed'
- * @property {string|undefined} projectId Resolved project ID once status is 'completed'
- */
-
-/**
  * @typedef {object} ConnectPeerOptions
  * @property {number} [timeout]
  * @property {AbortSignal} [signal]
@@ -145,7 +131,7 @@ const TERMINAL_STATUSES = new Set(['completed', 'failed'])
 /**
  * @typedef {object} PendingJoinRequest
  * @property {AbortController} abortController
- * @property {JoinRequestRecord} joinRequest
+ * @property {JoinRequest} joinRequest
  */
 
 /**
@@ -213,35 +199,33 @@ export class InviteLinkJoiner extends TypedEmitter {
     }
 
     const redeemAbortController = new AbortController()
-    /** @type {JoinRequestRecord} */
-    const joinRequest = {
-      inviteId,
-      swarmPublicKey: parsed.swarmPublicKey,
-      url,
-      status: 'connecting',
-      error: null,
-      projectId: undefined,
-    }
-    this.#requests.set(inviteId, {
+    /** @type {PendingJoinRequest} */
+    const pending = {
       abortController: redeemAbortController,
-      joinRequest,
-    })
+      joinRequest: {
+        inviteId,
+        swarmPublicKey: parsed.swarmPublicKey,
+        url,
+        status: 'connecting',
+      },
+    }
+    this.#requests.set(inviteId, pending)
 
-    this.#emitUpdate(joinRequest)
+    this.#emitUpdate(pending.joinRequest)
 
     // Start the async flow (fire-and-forget)
-    this.#runJoinFlow(joinRequest, parsed, timeout, redeemAbortController)
+    this.#runJoinFlow(pending, parsed, timeout, redeemAbortController)
 
-    return /** @type {JoinRequest} */ (joinRequest)
+    return pending.joinRequest
   }
 
   /**
-   * @param {JoinRequestRecord} joinRequest
+   * @param {PendingJoinRequest} pending
    * @param {ReturnType<typeof parseInviteURL>} parsed
    * @param {number} timeout
    * @param {AbortController} redeemAbortController
    */
-  async #runJoinFlow(joinRequest, parsed, timeout, redeemAbortController) {
+  async #runJoinFlow(pending, parsed, timeout, redeemAbortController) {
     const { inviteIdString, swarmPublicKey } = parsed
     const inviteIdBuffer = Buffer.from(inviteIdString, 'hex')
     const signal = redeemAbortController.signal
@@ -281,8 +265,8 @@ export class InviteLinkJoiner extends TypedEmitter {
       await this.#inviteLinkRPC.waitForPeer(identityPublicKeyHex)
 
       // Connected
-      joinRequest.status = 'connected'
-      this.#emitUpdate(joinRequest)
+      pending.joinRequest = { ...pending.joinRequest, status: 'connected' }
+      this.#emitUpdate(pending.joinRequest)
 
       const onInvited = pEvent(this.#inviteApi, 'invite-received', {
         filter: (invite) => invite.invitorDeviceId === identityPublicKeyHex,
@@ -333,8 +317,8 @@ export class InviteLinkJoiner extends TypedEmitter {
       await this.#inviteLinkRPC.acceptAck(inviteIdBuffer, identityPublicKeyHex)
 
       // Accepted
-      joinRequest.status = 'accepted'
-      this.#emitUpdate(joinRequest)
+      pending.joinRequest = { ...pending.joinRequest, status: 'accepted' }
+      this.#emitUpdate(pending.joinRequest)
 
       // Race: wait for invite vs connection close
       const invite = await Promise.race([onInvited, onClose])
@@ -348,17 +332,23 @@ export class InviteLinkJoiner extends TypedEmitter {
       joinProject.catch(noop)
 
       // Completed
-      joinRequest.status = 'completed'
-      joinRequest.projectId = projectId
-      this.#emitUpdate(joinRequest)
+      pending.joinRequest = {
+        ...pending.joinRequest,
+        status: 'completed',
+        projectId,
+      }
+      this.#emitUpdate(pending.joinRequest)
 
       connection.end()
     } catch (e) {
       // Failed
-      joinRequest.status = 'failed'
-      const error = wrapNetworkError(e, joinRequest.inviteId)
-      joinRequest.error = error.code
-      this.#emitUpdate(joinRequest)
+      const error = wrapNetworkError(e, pending.joinRequest.inviteId)
+      pending.joinRequest = {
+        ...pending.joinRequest,
+        status: 'failed',
+        error: error.code,
+      }
+      this.#emitUpdate(pending.joinRequest)
       this.emit('join-request-error', error)
 
       if (connection) {
@@ -376,7 +366,7 @@ export class InviteLinkJoiner extends TypedEmitter {
   }
 
   /**
-   * @param {JoinRequestRecord} joinRequest
+   * @param {JoinRequest} joinRequest
    */
   #emitUpdate(joinRequest) {
     // Only include the fields that the status variant owns
@@ -385,15 +375,18 @@ export class InviteLinkJoiner extends TypedEmitter {
         ? {
             status: joinRequest.status,
             inviteId: joinRequest.inviteId,
-            error: /** @type {string} */ (joinRequest.error),
+            error: joinRequest.error,
           }
         : joinRequest.status === 'completed'
         ? {
             status: joinRequest.status,
             inviteId: joinRequest.inviteId,
-            projectId: /** @type {string} */ (joinRequest.projectId),
+            projectId: joinRequest.projectId,
           }
-        : { status: joinRequest.status, inviteId: joinRequest.inviteId }
+        : {
+            status: joinRequest.status,
+            inviteId: joinRequest.inviteId,
+          }
     this.emit('join-request-update', update)
   }
 
@@ -409,7 +402,7 @@ export class InviteLinkJoiner extends TypedEmitter {
     if (!pending) {
       throw new JoinRequestNotFoundError({ inviteId })
     }
-    return /** @type {JoinRequest} */ (pending.joinRequest)
+    return pending.joinRequest
   }
 
   /**
@@ -420,9 +413,7 @@ export class InviteLinkJoiner extends TypedEmitter {
    * @returns {JoinRequest[]}
    */
   getJoinRequests() {
-    return [...this.#requests.values()].map(
-      (p) => /** @type {JoinRequest} */ (p.joinRequest)
-    )
+    return [...this.#requests.values()].map((p) => p.joinRequest)
   }
 
   /**
