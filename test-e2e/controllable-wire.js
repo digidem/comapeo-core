@@ -1,4 +1,6 @@
+import { once } from 'node:events'
 import { Transform } from 'node:stream'
+import WebSocket, { WebSocketServer } from 'ws'
 import { kProjectReplicate } from '../src/mapeo-project.js'
 
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
@@ -106,6 +108,84 @@ export function connectProjectsControllably(projectA, projectB, opts = {}) {
             })
         )
       )
+    },
+  }
+}
+
+/**
+ * A local websocket relay for a manager's `makeWebsocket` option. Each client
+ * socket is forwarded to the real server URL, and frames in both directions
+ * can be held and released, so a server connection can be paused mid-transfer.
+ */
+export async function createWebsocketRelay() {
+  const relay = new WebSocketServer({ port: 0 })
+  await once(relay, 'listening')
+  const { port } = /** @type {import('node:net').AddressInfo} */ (
+    relay.address()
+  )
+
+  let paused = false
+  /** @type {Array<() => void>} */
+  let held = []
+
+  /**
+   * @param {WebSocket} from
+   * @param {WebSocket} to
+   */
+  function forward(from, to) {
+    /** @type {Array<() => void>} */
+    const untilOpen = []
+    to.once('open', () => {
+      for (const send of untilOpen) send()
+      untilOpen.length = 0
+    })
+    from.on('message', (data, isBinary) => {
+      const send = () => {
+        if (to.readyState === WebSocket.OPEN) {
+          to.send(data, { binary: isBinary })
+        }
+      }
+      if (to.readyState === WebSocket.CONNECTING) untilOpen.push(send)
+      else if (paused) held.push(send)
+      else send()
+    })
+    from.once('close', () => to.close())
+    from.on('error', () => {})
+  }
+
+  relay.on('connection', (client, req) => {
+    const target = new URL(req.url ?? '/', 'ws://localhost').searchParams.get(
+      'target'
+    )
+    if (!target) {
+      client.close()
+      return
+    }
+    const upstream = new WebSocket(target)
+    forward(client, upstream)
+    forward(upstream, client)
+  })
+
+  return {
+    /** @param {string} url */
+    makeWebsocket(url) {
+      return new WebSocket(
+        `ws://127.0.0.1:${port}/?target=${encodeURIComponent(url)}`
+      )
+    },
+    /** Hold all frames in both directions until {@link resume}. */
+    pause() {
+      paused = true
+    },
+    resume() {
+      paused = false
+      const toSend = held
+      held = []
+      for (const send of toSend) send()
+    },
+    async close() {
+      for (const client of relay.clients) client.terminate()
+      await new Promise((res) => relay.close(() => res(undefined)))
     },
   }
 }

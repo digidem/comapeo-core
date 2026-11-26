@@ -82,6 +82,11 @@ export class PeerSyncController {
     return this.#syncCapability
   }
 
+  /** The sync level this peer has been set to */
+  get syncEnabledState() {
+    return this.#syncEnabledState
+  }
+
   /** Whether any data namespace is currently replicating with this peer */
   get isDataSyncEnabled() {
     return DATA_NAMESPACES.some((ns) => this.#enabledNamespaces.has(ns))
