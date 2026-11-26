@@ -15,6 +15,7 @@ export const DenyInviteOverInternet_DenyReason = {
   unspecified: "unspecified",
   unknown_invite_id: "unknown_invite_id",
   invitor_denied: "invitor_denied",
+  already_joined: "already_joined",
   UNRECOGNIZED: "UNRECOGNIZED",
 } as const;
 
@@ -32,6 +33,9 @@ export function denyInviteOverInternet_DenyReasonFromJSON(object: any): DenyInvi
     case 2:
     case "invitor_denied":
       return DenyInviteOverInternet_DenyReason.invitor_denied;
+    case 3:
+    case "already_joined":
+      return DenyInviteOverInternet_DenyReason.already_joined;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -47,6 +51,8 @@ export function denyInviteOverInternet_DenyReasonToNumber(object: DenyInviteOver
       return 1;
     case DenyInviteOverInternet_DenyReason.invitor_denied:
       return 2;
+    case DenyInviteOverInternet_DenyReason.already_joined:
+      return 3;
     case DenyInviteOverInternet_DenyReason.UNRECOGNIZED:
     default:
       return -1;

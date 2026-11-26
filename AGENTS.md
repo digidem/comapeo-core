@@ -153,6 +153,9 @@ streams of that shape.
 - `MapeoManager` and peers extend `TypedEmitter` (`tiny-typed-emitter`). Event maps are
   documented with `@typedef {...Events}` JSDoc (e.g. `MapeoManagerEvents`).
 - Internal control signals (sync stop/resume, etc.) are `Symbol`-keyed methods, not events.
+- **When adding an event, read [docs/development/events.md](docs/development/events.md).**
+  Key rule: an event that reports an error must emit a `KnownError` (coerce with
+  `ensureKnownError`) as the **only** argument.
 
 ### HTTP (Fastify)
 
@@ -261,6 +264,7 @@ yes, update it.
   for initial sync) must subscribe to `update` — a peer can reach a fully-synced state
   and disconnect inside a single throttle window, which the throttled `state` event
   would never report.
+- **Multi-line union JSDoc typedefs don't parse.** `@typedef {\n A\n | B\n} Name` spanning multiple comment lines fails under the project's TypeScript (5.6) with cryptic `TS1005: '}' expected`. Write the whole union type expression on a **single line** (long lines are fine — Prettier doesn't wrap comments). For readable unions, define single-line variant typedefs (`/** @typedef {Base & { status: 'x' }} VariantX */`) and union their names on one line (see `JoinRequest` in `src/invite/invite-link-joiner.js`).
 - **`node:assert` is banned** by lint — always `node:assert/strict`.
 - **Tests must not touch the network or real disk.** Use `:memory:` SQLite, `RAM` cores,
   and injected fakes (`makeWebsocket`, `coreStorage`, `swarm`).

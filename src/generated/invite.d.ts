@@ -11,6 +11,7 @@ export declare const DenyInviteOverInternet_DenyReason: {
     readonly unspecified: "unspecified";
     readonly unknown_invite_id: "unknown_invite_id";
     readonly invitor_denied: "invitor_denied";
+    readonly already_joined: "already_joined";
     readonly UNRECOGNIZED: "UNRECOGNIZED";
 };
 export type DenyInviteOverInternet_DenyReason = typeof DenyInviteOverInternet_DenyReason[keyof typeof DenyInviteOverInternet_DenyReason];
