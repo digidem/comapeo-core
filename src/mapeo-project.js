@@ -479,9 +479,7 @@ export class MapeoProject extends ReadyResource {
     this.#blobStore.on('error', (e) => {
       // Ignore hypercore inflight request cancellation
       if (ensureError(e).message.includes('REQUEST_CANCELLED')) return
-      // TODO: Handle this error in some way - this error will come from an
-      // unexpected error with background blob downloads
-      console.error('BlobStore error', e)
+      this.#l.log('BlobStore error: %o', e)
     })
 
     this.#blobApi = new BlobApi({
