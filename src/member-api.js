@@ -16,6 +16,7 @@ import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import {
   AlreadyBlockedError,
+  AlreadyJoinedError,
   DeviceIdNotForServerError,
   ensureKnownError,
   InvalidServerResponseError,
@@ -24,6 +25,7 @@ import {
   IncompleteProjectDataError,
   MissingOwnDeviceInfoError,
   NetworkError,
+  NotFoundError,
   ProjectDetailsSendFailError,
   ProjectNotInAllowlistError,
   ServerTooManyProjectsError,
@@ -341,6 +343,33 @@ export class MemberApi extends TypedEmitter {
       await this.#inviteLinkRPC.disconnect(peerId)
 
       throw new InviteAlreadyRedeemedError()
+    }
+
+    // Auto-deny if the redeeming peer is already an active member of this
+    // project. getRole throws NotFoundError for a device whose auth core has
+    // not synced yet (a new joiner), which we treat as "not a member". Placed
+    // before registering in #redeemedInvites so a denied peer is never marked
+    // redeemed (a stray accept still throws InviteNotYetRedeemedError).
+    let role = null
+    try {
+      role = await this.#roles.getRole(peerId)
+    } catch (e) {
+      if (ensureKnownError(e).code !== NotFoundError.code) throw e
+    }
+    if (role && isActiveMemberRole(role)) {
+      this.#l.log(
+        'Redeeming peer is already an active member, denying',
+        inviteIdString.slice(0, 7)
+      )
+      await this.#inviteLinkRPC.redeemAck(inviteIdBuffer, peerId)
+      await this.#inviteLinkRPC.deny(
+        inviteIdBuffer,
+        peerId,
+        DenyInviteOverInternet_DenyReason.already_joined
+      )
+      await this.#inviteLinkRPC.disconnect(peerId)
+
+      throw new AlreadyJoinedError()
     }
 
     if (!redeemedSet) {

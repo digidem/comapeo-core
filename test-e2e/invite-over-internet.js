@@ -12,12 +12,14 @@ import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import {
+  AlreadyJoinedError,
   UnknownInviteIDRedeemAttemptError,
   TimeoutError,
-  InviteRedeemConnectionClosedError,
+  ConnectionLostError,
   ensureKnownError,
   InviteNotYetRedeemedError,
   InviteDeniedByInviterError,
+  UnknownInviteIDError,
   InviteAbortedError,
   JoinProjectCancelledError,
   InviteConnectionError,
@@ -36,18 +38,29 @@ import { LocalPeers } from '../src/local-peers.js'
  * @param {import('../src/invite/invite-link-joiner.js').InviteLinkJoiner} joiner
  * @param {string} inviteId
  * @param {{ timeout?: number }} [opts]
- * @returns {Promise<import('../src/invite/invite-link-joiner.js').JoinRequestUpdate>}
+ * @returns {Promise<Extract<import('../src/invite/invite-link-joiner.js').JoinRequest, { status: 'completed' }>>}
  */
 function awaitJoinComplete(joiner, inviteId, opts = {}) {
   const { timeout } = opts
-  return pEvent(joiner, 'join-request-update', {
+  const onCompleted = pEvent(joiner, 'join-request-update', {
     timeout,
     filter: (update) =>
-      update.inviteId === inviteId &&
-      (update.status === 'completed' || update.status === 'failed'),
-  }).then((update) => {
-    if (update.status === 'completed') return update
-    throw update.error
+      update.inviteId === inviteId && update.status === 'completed',
+  })
+  const onError = pEvent(joiner, 'join-request-error', {
+    timeout,
+    filter: (error) => error.inviteId === inviteId,
+  }).then((error) => {
+    throw error
+  })
+  // Only one of these fires for a given inviteId; swallow the loser's timeout.
+  onCompleted.catch(() => {})
+  onError.catch(() => {})
+  return Promise.race([onCompleted, onError]).then((result) => {
+    if (result.status !== 'completed') {
+      throw new Error('expected completed update')
+    }
+    return result
   })
 }
 
@@ -322,6 +335,63 @@ test('invite over internet can be redeemed by multiple peers', async (t) => {
   )
 })
 
+test('invite over internet auto-denies a peer that is already a member', async (t) => {
+  const managers = await createManagers(2, t, 'device_type_unspecified', {
+    useTestnet: true,
+  })
+  const [invitor, invitee] = managers
+
+  const projectId = await invitor.createProject({
+    name: 'Mapeo',
+    projectColor: '#123456',
+    projectDescription: 'fun project',
+  })
+  const project = await invitor.getProject(projectId)
+
+  const url = await project.$member.createInviteLink({
+    roleId: MEMBER_ROLE_ID,
+  })
+  const { inviteIdString: inviteId } = parseInviteURL(url)
+
+  // First join: invitee connects and becomes a member
+  const onFirstRedeem = pEvent(invitor, 'invite-link-join-request', {
+    multiArgs: true,
+    rejectionEvents: ['invite-link-join-request-error'],
+    timeout: 5000,
+  })
+  const onFirstJoin = awaitJoinComplete(invitee.inviteLinks, inviteId, {
+    timeout: 5000,
+  })
+  await invitee.setDeviceInfo({ name: 'invitee', deviceType: 'desktop' })
+  invitee.inviteLinks.createJoinRequest(url)
+
+  const [, firstDeviceId, firstRedeemId] =
+    /** @type {[string, string, string]} */ (
+      /**@type unknown*/ (await onFirstRedeem)
+    )
+  assert.equal(firstDeviceId, invitee.deviceId)
+  await project.$member.acceptInviteLinkRequest(firstRedeemId, firstDeviceId)
+  const { projectId: gotProjectId } = await onFirstJoin
+  assert.equal(gotProjectId, projectId, 'joined expected project')
+
+  // Second join: a fresh link (a same-link re-redeem would instead trip
+  // InviteAlreadyRedeemedError). The invitee is already a member, so this
+  // redeem is auto-denied with the already_joined reason.
+  const url2 = await project.$member.createInviteLink({
+    roleId: MEMBER_ROLE_ID,
+  })
+  const { inviteIdString: inviteId2 } = parseInviteURL(url2)
+
+  const onSecondJoin = awaitJoinComplete(invitee.inviteLinks, inviteId2, {
+    timeout: 5000,
+  })
+  invitee.inviteLinks.createJoinRequest(url2)
+  await assert.rejects(
+    onSecondJoin,
+    (err) => ensureKnownError(err).code === AlreadyJoinedError.code
+  )
+})
+
 test('invite over internet errors if invitor deviceID is invalid', async (t) => {
   const managers = await createManagers(2, t, 'device_type_unspecified', {
     useTestnet: true,
@@ -400,10 +470,7 @@ test('invite over internet errors if inviter closes before accepting', async (t)
     // The invitee's join should fail because the invitor disconnected
     assert.rejects(
       onJoinComplete,
-      (err) =>
-        err instanceof InviteConnectionError &&
-        ensureKnownError(err.cause).code ===
-          InviteRedeemConnectionClosedError.code
+      (err) => ensureKnownError(err).code === ConnectionLostError.code
     ),
     // Close the invitor before accepting
     invitor.close(),
@@ -586,7 +653,7 @@ test('invite over internet errors if invitee uses invalid inviteId', async (t) =
     assert.rejects(
       // Try to join with invalid invite ID
       onJoinComplete,
-      (err) => ensureKnownError(err).code === InviteDeniedByInviterError.code
+      (err) => ensureKnownError(err).code === UnknownInviteIDError.code
     ),
   ])
 })
@@ -912,7 +979,10 @@ test('denied peer reconnecting with the same identity is not replicated with', a
   )
 
   await Promise.all([
-    assert.rejects(onJoinComplete),
+    assert.rejects(
+      onJoinComplete,
+      (err) => ensureKnownError(err).code === InviteDeniedByInviterError.code
+    ),
     project.$member.denyInviteLinkRequest(redeemInviteId, deviceId),
   ])
 
