@@ -1,6 +1,5 @@
-# Cleans up orphaned test apps on Fly
-
-# TODO: check app creation date - could destroy an app during a test run
+# Destroys Fly test apps left behind by server-test.yml runs that were killed
+# before their own cleanup step ran.
 # See <https://github.com/digidem/comapeo-core/issues/914>.
 
 name: Fly Cleanup
@@ -8,23 +7,35 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 5 * * *' # Every day at 5am UTC
+
+permissions:
+  actions: read
+
 jobs:
   cleanup:
     name: Cleanup Orphaned Apps
     runs-on: ubuntu-latest
-    concurrency: deploy-group # optional: ensure only one action runs at a time
+    concurrency: deploy-group
     steps:
-      - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          fly apps list -q -o digidem | while IFS= read -r name; do
-            # Trim leading and trailing whitespace from $name
-            name=$(echo "$name" | xargs)
-            # Check if the name starts with 'comapeo-cloud-test-'
-            if [[ $name == comapeo-cloud-test-* ]]; then
-              # Call the fly destroy command with the name
-              fly apps destroy -y "$name"
+          set -euo pipefail
+          apps=$(flyctl apps list --org digidem --json \
+            | jq -r '.[].Name | select(startswith("comapeo-cloud-test-"))')
+          for app in $apps; do
+            run_id=$(sed -nE 's/^comapeo-cloud-test-([0-9]+)-.*/\1/p' <<<"$app")
+            # Names without a run id come from local runs, and are fair game by now
+            if [ -n "$run_id" ]; then
+              status=$(gh run view "$run_id" --json status --jq .status || echo unknown)
+              if [ "$status" != completed ]; then
+                echo "Keeping $app (run $run_id is $status)"
+                continue
+              fi
             fi
+            echo "Destroying $app"
+            flyctl apps destroy "$app" -y
           done
