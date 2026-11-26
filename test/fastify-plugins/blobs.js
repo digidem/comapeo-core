@@ -12,6 +12,8 @@ import { createBlobStore } from '../helpers/blob-store.js'
 import { waitForCores, replicate } from '../helpers/core-manager.js'
 import { NotFoundError } from '../../src/errors.js'
 
+const BLOCK_SIZE = 64 * 1024
+
 test('Plugin throws error if missing getBlobStore option', async () => {
   const server = fastify()
   await assert.rejects(async () => {
@@ -161,6 +163,7 @@ test('GET photo returns correct blob payload', async (t) => {
     })
 
     assert.deepEqual(res.rawPayload, image.data, 'should be equal')
+    assert.equal(res.headers['content-length'], String(image.data.byteLength))
   }
 })
 
@@ -297,6 +300,51 @@ test('GET photo returns 404 when trying to get non-existent blob', async (t) => 
 
     assert.equal(res.statusCode, 404)
   }
+})
+
+test('GET photo returns 404 when later blocks of the blob are not downloaded', async (t) => {
+  const { server, projectPublicId, blobStore, coreManager } = await setup(t)
+
+  const blobId = /** @type {const} */ ({
+    type: 'photo',
+    variant: 'original',
+    name: 'partial',
+  })
+  const driveId = await blobStore.put(blobId, randomBytes(3 * BLOCK_SIZE))
+  const entry = await blobStore.entry({ ...blobId, driveId })
+  assert(entry)
+  const { blockOffset, blockLength } = entry.value.blob
+  const blobCore = coreManager.getWriterCore('blob').core
+  await blobCore.clear(blockOffset + 2, blockOffset + blockLength)
+
+  // A real request rather than `inject`, so a truncated 200 is observed as
+  // a client would see it instead of as a rejected promise.
+  const address = await server.listen({ port: 0, host: '127.0.0.1' })
+  t.after(() => server.close())
+
+  const res = await fetch(
+    address + buildRouteUrl({ ...blobId, projectPublicId, driveId })
+  )
+
+  assert.equal(res.status, 404)
+  const body = /** @type {{ code: string }} */ (await res.json())
+  assert.equal(body.code, 'BLOB_NOT_AVAILABLE_ERROR')
+})
+
+test('GET photo returns 404 when the blob index is not fully downloaded', async (t) => {
+  const { data, server, projectPublicId, coreManager } = await setup(t)
+
+  const [{ blobId }] = data
+  const indexCore = coreManager.getWriterCore('blobIndex').core
+  await indexCore.clear(indexCore.length - 1, indexCore.length)
+
+  const res = await server.inject({
+    method: 'GET',
+    url: buildRouteUrl({ ...blobId, projectPublicId }),
+  })
+
+  assert.equal(res.statusCode, 404)
+  assert.equal(res.json().code, 'BLOB_NOT_AVAILABLE_ERROR')
 })
 
 /**
