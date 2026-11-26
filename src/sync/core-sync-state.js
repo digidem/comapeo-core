@@ -304,7 +304,15 @@ export class CoreSyncState {
     const peerId = peerIdFromNoise(peer.protomux.stream)
     const peerState = this.#remoteStates.get(peerId)
     if (!peerState) return
-    peerState.status = 'stopped'
+    // The same device may still be connected over another stream
+    const survivor = this.#core?.peers.find(
+      (other) => peerIdFromNoise(other.protomux.stream) === peerId
+    )
+    if (survivor) {
+      peerState.setHavesBitfield(survivor.remoteBitfield)
+    } else {
+      peerState.status = 'stopped'
+    }
     this.#update()
   }
 }
