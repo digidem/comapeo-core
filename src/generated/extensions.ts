@@ -87,6 +87,21 @@ export interface DownloadIntentExtension_DownloadIntentsEntry {
   value: DownloadIntentExtension_DownloadIntent | undefined;
 }
 
+export interface KnownSyncStates {
+  states: KnownSyncStates_SyncState[];
+}
+
+export interface KnownSyncStates_SyncState {
+  /** Peer ID that this sync state represents */
+  originId: Buffer;
+  /** Auth core ID of author this peer synced with */
+  coreId: Buffer;
+  /** Latest block this peer synced */
+  authIndex: number;
+  dataIndex: number;
+  blobIndex: number;
+}
+
 function createBaseProjectExtension(): ProjectExtension {
   return { authCoreKeys: [] };
 }
@@ -389,6 +404,140 @@ export const DownloadIntentExtension_DownloadIntentsEntry = {
     message.value = (object.value !== undefined && object.value !== null)
       ? DownloadIntentExtension_DownloadIntent.fromPartial(object.value)
       : undefined;
+    return message;
+  },
+};
+
+function createBaseKnownSyncStates(): KnownSyncStates {
+  return { states: [] };
+}
+
+export const KnownSyncStates = {
+  encode(message: KnownSyncStates, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.states) {
+      KnownSyncStates_SyncState.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): KnownSyncStates {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseKnownSyncStates();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.states.push(KnownSyncStates_SyncState.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<KnownSyncStates>, I>>(base?: I): KnownSyncStates {
+    return KnownSyncStates.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<KnownSyncStates>, I>>(object: I): KnownSyncStates {
+    const message = createBaseKnownSyncStates();
+    message.states = object.states?.map((e) => KnownSyncStates_SyncState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseKnownSyncStates_SyncState(): KnownSyncStates_SyncState {
+  return { originId: Buffer.alloc(0), coreId: Buffer.alloc(0), authIndex: 0, dataIndex: 0, blobIndex: 0 };
+}
+
+export const KnownSyncStates_SyncState = {
+  encode(message: KnownSyncStates_SyncState, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.originId.length !== 0) {
+      writer.uint32(10).bytes(message.originId);
+    }
+    if (message.coreId.length !== 0) {
+      writer.uint32(18).bytes(message.coreId);
+    }
+    if (message.authIndex !== 0) {
+      writer.uint32(24).uint64(message.authIndex);
+    }
+    if (message.dataIndex !== 0) {
+      writer.uint32(32).uint64(message.dataIndex);
+    }
+    if (message.blobIndex !== 0) {
+      writer.uint32(40).uint64(message.blobIndex);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): KnownSyncStates_SyncState {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseKnownSyncStates_SyncState();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.originId = reader.bytes() as Buffer;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.coreId = reader.bytes() as Buffer;
+          continue;
+        case 3:
+          if (tag !== 24) {
+            break;
+          }
+
+          message.authIndex = longToNumber(reader.uint64() as Long);
+          continue;
+        case 4:
+          if (tag !== 32) {
+            break;
+          }
+
+          message.dataIndex = longToNumber(reader.uint64() as Long);
+          continue;
+        case 5:
+          if (tag !== 40) {
+            break;
+          }
+
+          message.blobIndex = longToNumber(reader.uint64() as Long);
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<KnownSyncStates_SyncState>, I>>(base?: I): KnownSyncStates_SyncState {
+    return KnownSyncStates_SyncState.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<KnownSyncStates_SyncState>, I>>(object: I): KnownSyncStates_SyncState {
+    const message = createBaseKnownSyncStates_SyncState();
+    message.originId = object.originId ?? Buffer.alloc(0);
+    message.coreId = object.coreId ?? Buffer.alloc(0);
+    message.authIndex = object.authIndex ?? 0;
+    message.dataIndex = object.dataIndex ?? 0;
+    message.blobIndex = object.blobIndex ?? 0;
     return message;
   },
 };

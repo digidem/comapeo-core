@@ -6,6 +6,7 @@ import {
   HaveExtension,
   ProjectExtension,
   DownloadIntentExtension,
+  KnownSyncStates,
 } from '../generated/extensions.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
@@ -36,6 +37,7 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
  * @property {(coreRecord: CoreRecord) => void} add-core
  * @property {(namespace: Namespace, msg: { coreDiscoveryId: string, peerId: string, start: number, bitfield: Uint32Array }) => void} peer-have
  * @property {(blobFilter: GenericBlobFilter | null, peerId: string) => void} peer-download-intent
+ * @property {(knownSyncStates: KnownSyncStates) => void} peer-known-sync-states
  */
 
 /**
@@ -56,6 +58,7 @@ export class CoreManager extends ReadyResource {
   #l
   #autoDownload
   #downloadIntentExtension
+  #knownSyncStateExtension
 
   static get namespaces() {
     return NAMESPACES
@@ -170,6 +173,14 @@ export class CoreManager extends ReadyResource {
         onmessage: (msg, peer) => {
           this.#handleDownloadIntentMessage(msg, peer)
         },
+      }
+    )
+
+    this.#knownSyncStateExtension = this.creatorCore.registerExtension(
+      'mapeo/known-sync-state',
+      {
+        encoding: KnownSyncStateCodec,
+        onmessage: (msg) => this.#handleKnownSyncStateMessage(msg),
       }
     )
 
@@ -413,6 +424,20 @@ export class CoreManager extends ReadyResource {
   }
 
   /**
+   * @param {KnownSyncStates} states
+   */
+  #handleKnownSyncStateMessage(states) {
+    this.emit('peer-known-sync-states', states)
+  }
+
+  /**
+   * @param {KnownSyncStates} states
+   */
+  broadcastKnownSyncStates(states) {
+    this.#knownSyncStateExtension.broadcast(states)
+  }
+
+  /**
    * @param {GenericBlobFilter | null} blobFilter
    * @param {HypercorePeer} peer
    */
@@ -566,5 +591,22 @@ const DownloadIntentCodec = {
       key + '', // keep TS happy
       value.variants,
     ])
+  },
+}
+
+const KnownSyncStateCodec = {
+  /**
+   * @param {KnownSyncStates} states
+   * @returns {Buffer | Uint8Array}
+   */
+  encode(states) {
+    return KnownSyncStates.encode(states).finish()
+  },
+  /**
+   * @param {Buffer | Uint8Array} buf
+   * @returns {KnownSyncStates}
+   */
+  decode(buf) {
+    return KnownSyncStates.decode(buf)
   },
 }
