@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { KeyManager } from '@comapeo/crypto'
 import Fastify from 'fastify'
 import assert from 'node:assert/strict'
@@ -11,10 +12,12 @@ import {
   invite,
 } from './utils.js'
 
-const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
-  .pathname
-const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
-  .pathname
+const projectMigrationsFolder = fileURLToPath(
+  new URL('../drizzle/project', import.meta.url)
+)
+const clientMigrationsFolder = fileURLToPath(
+  new URL('../drizzle/client', import.meta.url)
+)
 
 test('migrations pick up values that were not previously understood', async (t) => {
   // Create Manager 1, which has new data.

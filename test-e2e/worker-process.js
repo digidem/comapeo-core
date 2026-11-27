@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { createMapeoServer } from '@comapeo/ipc'
 import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
@@ -77,10 +78,12 @@ async function main() {
 
   const manager = new MapeoManager({
     rootKey: randomBytes(16),
-    projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
-      .pathname,
-    clientMigrationsFolder: new URL('../drizzle/client', import.meta.url)
-      .pathname,
+    projectMigrationsFolder: fileURLToPath(
+      new URL('../drizzle/project', import.meta.url)
+    ),
+    clientMigrationsFolder: fileURLToPath(
+      new URL('../drizzle/client', import.meta.url)
+    ),
     dbFolder,
     coreStorage,
     fastify: Fastify(),

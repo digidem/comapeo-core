@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { assertProjectHasImportedCategories, createManager } from './utils.js'
@@ -21,10 +22,12 @@ test('config import - load and re-load config manually', async (t) => {
 })
 
 test('config import - translated category names', async (t) => {
-  const configPath = new URL(
-    './fixtures/config/category-name-translation-test.comapeocat',
-    import.meta.url
-  ).pathname
+  const configPath = fileURLToPath(
+    new URL(
+      './fixtures/config/category-name-translation-test.comapeocat',
+      import.meta.url
+    )
+  )
   const manager = createManager('device0', t)
   const project = await manager.getProject(await manager.createProject())
 

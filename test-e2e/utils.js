@@ -35,10 +35,12 @@ import createTestnet from 'hyperdht/testnet.js'
 /** @import { PublicPeerInfo } from '../src/mapeo-manager.js' */
 /** @import { TestNet } from 'hyperdht/testnet.js' */
 
-const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
-  .pathname
-const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
-  .pathname
+const projectMigrationsFolder = fileURLToPath(
+  new URL('../drizzle/project', import.meta.url)
+)
+const clientMigrationsFolder = fileURLToPath(
+  new URL('../drizzle/client', import.meta.url)
+)
 
 /**
  * @internal

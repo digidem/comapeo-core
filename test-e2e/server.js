@@ -739,10 +739,12 @@ let installCloudServer
  * @returns {Promise<LocalTestServer>}
  */
 async function createLocalTestServer(t) {
-  const projectMigrationsFolder = new URL('./drizzle/project', comapeoCoreUrl)
-    .pathname
-  const clientMigrationsFolder = new URL('./drizzle/client', comapeoCoreUrl)
-    .pathname
+  const projectMigrationsFolder = fileURLToPath(
+    new URL('./drizzle/project', comapeoCoreUrl)
+  )
+  const clientMigrationsFolder = fileURLToPath(
+    new URL('./drizzle/client', comapeoCoreUrl)
+  )
 
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()

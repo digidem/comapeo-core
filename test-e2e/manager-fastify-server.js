@@ -17,10 +17,12 @@ const BLOB_FIXTURES_DIR = fileURLToPath(
   new URL('../test/fixtures/blob-api/', import.meta.url)
 )
 
-const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
-  .pathname
-const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
-  .pathname
+const projectMigrationsFolder = fileURLToPath(
+  new URL('../drizzle/project', import.meta.url)
+)
+const clientMigrationsFolder = fileURLToPath(
+  new URL('../drizzle/client', import.meta.url)
+)
 
 test('start/stop lifecycle', async (t) => {
   const fastify = Fastify()

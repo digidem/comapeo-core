@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
 import fsPromises from 'node:fs/promises'
 
@@ -32,8 +33,9 @@ export function createCoreManager(
   cleanup = true
 ) {
   migrate(db, {
-    migrationsFolder: new URL('../../drizzle/project', import.meta.url)
-      .pathname,
+    migrationsFolder: fileURLToPath(
+      new URL('../../drizzle/project', import.meta.url)
+    ),
   })
 
   const storage = temporaryDirectory()

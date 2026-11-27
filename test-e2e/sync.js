@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as fs from 'node:fs/promises'
@@ -584,10 +585,9 @@ test('auto-stop', async (t) => {
 
   await clock.tickAsync(9000)
 
-  const fixturePath = new URL(
-    '../test/fixtures/images/02-digidem-logo.jpg',
-    import.meta.url
-  ).pathname
+  const fixturePath = fileURLToPath(
+    new URL('../test/fixtures/images/02-digidem-logo.jpg', import.meta.url)
+  )
   const blob = await invitorProject.$blobs.create(
     { original: fixturePath },
     { mimeType: 'image/jpeg' }
