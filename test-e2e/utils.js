@@ -124,7 +124,7 @@ export async function invite({
 }) {
   const invitorProject = await invitor.getProject(projectId)
 
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     invitees.map(async (invitee) => {
       const inviteId = randomBytes(32)
 
@@ -150,6 +150,14 @@ export async function invite({
       ])
     })
   )
+
+  const errors = results.flatMap((result) =>
+    result.status === 'rejected' ? [result.reason] : []
+  )
+  if (errors.length === 1) throw errors[0]
+  if (errors.length > 1) {
+    throw new AggregateError(errors, `${errors.length} invites failed`)
+  }
 }
 
 /**
