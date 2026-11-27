@@ -896,8 +896,17 @@ test('shares cores', async function (t) {
 
 test('no sync capabilities === no namespaces sync apart from auth', async (t) => {
   const COUNT = 3
-  const managers = await createManagers(COUNT, t)
-  const [invitor, invitee, blocked] = managers
+  const [invitor, invitee] = await createManagers(2, t)
+  // A blocked device never completes initial sync, so joining waits for the
+  // full initial-sync timeout.
+  const blocked = createManager('device2-device_type_unspecified', t, {
+    __testOnlyInitialSyncTimeoutMs: 5_000,
+  })
+  await blocked.setDeviceInfo({
+    name: 'device2-device_type_unspecified',
+    deviceType: 'device_type_unspecified',
+  })
+  const managers = [invitor, invitee, blocked]
   const disconnect1 = connectPeers(managers)
 
   t.after(() => disconnect1())
@@ -947,6 +956,20 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   }
 
   await waitForSync([inviteeProject, invitorProject], 'full')
+
+  // waitForSync doesn't cover the blocked device, so give it time to learn every
+  // core. On timeout, fall through to the assertions below.
+  const blockedProject = projects[2]
+  const deadline = Date.now() + 10_000
+  while (
+    Date.now() < deadline &&
+    !NAMESPACES.every(
+      (ns) =>
+        blockedProject.$sync[kSyncState].getState()[ns].coreCount === COUNT
+    )
+  ) {
+    await delay(50)
+  }
 
   // Reaching into internals here, but only to validate the result of the test, so not fully e2e
   const [invitorState, inviteeState, blockedState] = projects.map((p) =>

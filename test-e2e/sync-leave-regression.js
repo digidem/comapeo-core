@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LEFT_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
-import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
+import { connectPeers, createManager, invite, waitForSync } from './utils.js'
 import { connectProjectsControllably } from './controllable-wire.js'
 
 // Regression test for the intermittent "Sync timeout" error users hit when
@@ -17,14 +17,19 @@ import { connectProjectsControllably } from './controllable-wire.js'
 //
 // We reproduce a stalled-but-connected peer deterministically by driving the
 // connection over a transport we control (test-e2e/controllable-wire.js) and
-// pausing it at the moment of leaving. This takes ~45s (the internal
-// INITIAL_SYNC_TIMEOUT_MS) because the fix lets the propagation time out and
-// then swallows it.
+// pausing it at the moment of leaving. The member uses a short
+// `__testOnlyInitialSyncTimeoutMs` because the fix lets the propagation time out and then
+// swallows it.
 test(
   'leaveProject does not reject when post-leave sync propagation stalls',
   { timeout: 90_000 },
   async (t) => {
-    const [ma, mb] = await createManagers(2, t)
+    const ma = createManager('device0', t)
+    const mb = createManager('device1', t, {
+      __testOnlyInitialSyncTimeoutMs: 5_000,
+    })
+    await ma.setDeviceInfo({ name: 'device0', deviceType: 'mobile' })
+    await mb.setDeviceInfo({ name: 'device1', deviceType: 'mobile' })
 
     // Establish membership over local discovery, then drive the sync phase over
     // a transport we control so we can stall it at the moment of leaving.
