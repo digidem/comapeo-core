@@ -45,6 +45,13 @@ const USE_REMOTE_SERVER = Boolean(process.env.REMOTE_TEST_SERVER)
 // Set by CI, which saves each app's logs and then destroys it after the run
 const CI_FLY_APP_PREFIX = process.env.FLY_APP_PREFIX
 const FLY_APP_PREFIX = CI_FLY_APP_PREFIX ?? 'comapeo-cloud-test-local-'
+// The image self-hosters deploy, so remote tests run against the latest release
+const REMOTE_SERVER_IMAGE =
+  process.env.REMOTE_SERVER_IMAGE ??
+  'docker.io/communityfirst/comapeo-cloud:latest'
+const FLY_CONFIG_PATH = fileURLToPath(
+  new URL('./fixtures/fly.toml', import.meta.url)
+)
 const MULTI_DEVICE_TEST_TIMEOUT = USE_REMOTE_SERVER ? 10 * 60_000 : 60_000
 
 const comapeoCoreUrl = new URL('..', import.meta.url)
@@ -637,19 +644,6 @@ async function createTestServer(t) {
  * @returns {Promise<RemoteTestServer>}
  */
 async function createRemoteTestServer(t) {
-  const comapeoCloudUrl = new URL(
-    './node_modules/@comapeo/cloud/',
-    comapeoCoreUrl
-  )
-  const cwd = fileURLToPath(comapeoCloudUrl)
-
-  installCloudServer ??= execa('npm', ['install', '--omit=dev'], {
-    cwd,
-    stdio: 'inherit',
-    timeout: 3 * 60_000,
-  })
-  await installCloudServer
-
   const appName = FLY_APP_PREFIX + Math.random().toString(36).slice(8)
 
   /**
@@ -658,7 +652,7 @@ async function createRemoteTestServer(t) {
    */
   const flyctl = (args, timeout = 3 * 60_000) => {
     log(t, `flyctl ${args.join(' ')}`)
-    return execa('flyctl', args, { cwd, stdio: 'inherit', timeout })
+    return execa('flyctl', args, { stdio: 'inherit', timeout })
   }
 
   await flyctl([
@@ -681,7 +675,7 @@ async function createRemoteTestServer(t) {
     appName,
   ])
 
-  // Fly's registry sometimes 404s the image push for a newly created app
+  // Retry transient Fly failures; a healthy deploy takes well under a minute
   const deployAttempts = 3
   for (let attempt = 1; ; attempt++) {
     try {
@@ -690,8 +684,10 @@ async function createRemoteTestServer(t) {
           'deploy',
           '--app',
           appName,
-          '--vm-memory',
-          '512',
+          '--config',
+          FLY_CONFIG_PATH,
+          '--image',
+          REMOTE_SERVER_IMAGE,
           '--wait-timeout',
           '3m',
           '-e',
@@ -699,7 +695,7 @@ async function createRemoteTestServer(t) {
           '-e',
           'DEBUG=mapeo:*',
         ],
-        6 * 60_000
+        4 * 60_000
       )
       break
     } catch (err) {
@@ -710,9 +706,6 @@ async function createRemoteTestServer(t) {
 
   return { type: 'remote', serverBaseUrl: `https://${appName}.fly.dev/` }
 }
-
-/** @type {undefined | Promise<unknown>} */
-let installCloudServer
 
 /**
  * @param {import('node:test').TestContext} t

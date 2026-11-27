@@ -1,0 +1,31 @@
+# Fly config for the comapeo-cloud test servers in test-e2e/server.js. The app
+# name and image are passed on the command line.
+
+primary_region = 'iad'
+
+[env]
+  STORAGE_DIR = '/data'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'suspend'
+  auto_start_machines = true
+  min_machines_running = 0
+  max_machines_running = 1
+  processes = ['app']
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/healthcheck"
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
+
+[mounts]
+  source = "myapp_data"
+  destination = "/data"
