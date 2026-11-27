@@ -2,7 +2,8 @@ import test from 'node:test'
 import { access, constants } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
-import Hypercore from 'hypercore'
+import Protomux from 'protomux'
+import FakeTimers from '@sinonjs/fake-timers'
 import { createCoreManager, replicate } from './helpers/core-manager.js'
 import { randomBytes } from 'crypto'
 import Sqlite from 'better-sqlite3'
@@ -27,6 +28,7 @@ import { coresTable } from '../src/schema/project.js'
 import { eq } from 'drizzle-orm'
 import { createCore } from './helpers/create-core.js'
 /** @import { Namespace } from '../src/types.js' */
+/** @import Hypercore from 'hypercore' */
 
 test('project creator auth core has project key', async function (t) {
   const keyManager = new KeyManager(randomBytes(16))
@@ -158,37 +160,111 @@ test('eagerly updates remote bitfields', async (t) => {
   }
 })
 
-test('multiplexing waits for cores to be added', async (t) => {
-  // Mapeo code expects replication to work when cores are not added to the
-  // replication stream at the same time. This is not explicitly tested in
-  // Hypercore so we check here that this behaviour works.
-  const a1 = await createCore(t)
-  const a2 = await createCore(t)
+test('cores added to a replication stream at different times still replicate', async (t) => {
+  // Mapeo adds cores to a peer's replication stream long after the peer has
+  // opened channels for them. This is not explicitly tested in Hypercore.
 
-  const b1 = await createCore(t, a1.key)
-  const b2 = await createCore(t, a2.key)
+  await t.test('core attached inside the discovery-key handler', async (t) => {
+    const { a, b, muxA, muxB } = await setupLateReplication(t)
+    const bByDiscoveryKey = new Map(
+      b.map((core) => [core.discoveryKey?.toString('hex'), core])
+    )
+    // Like PeerSyncController#handleDiscoveryKey for a known, enabled core
+    muxB.pair({ protocol: 'hypercore/alpha' }, async (discoveryKey) => {
+      bByDiscoveryKey.get(discoveryKey.toString('hex'))?.replicate(muxB)
+    })
+    for (const core of a) core.replicate(muxA)
+
+    await assertLateReplication(a, b)
+  })
+
+  await t.test('remote open rejected, core attached later', async (t) => {
+    const { a, b, muxA, muxB } = await setupLateReplication(t)
+    const discoveryKeysSeen = waitForDiscoveryKeys(muxB, a.length)
+    for (const core of a) core.replicate(muxA)
+    // Protomux rejects the remote open once the pair handler resolves, so B's
+    // later open relies on Hypercore re-pairing.
+    await discoveryKeysSeen
+    await new Promise(setImmediate)
+    for (const core of b) core.replicate(muxB)
+
+    await assertLateReplication(a, b)
+  })
+
+  await t.test('core attached after a long idle gap', async (t) => {
+    const { a, b, muxA, muxB } = await setupLateReplication(t, {
+      keepAlive: 5000,
+    })
+    const discoveryKeysSeen = waitForDiscoveryKeys(muxB, a.length)
+    for (const core of a) core.replicate(muxA)
+    await discoveryKeysSeen
+    await new Promise(setImmediate)
+
+    // Catches any timer-based expiry of the rejected or idle channels
+    const clock = FakeTimers.install({
+      toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
+    })
+    try {
+      await clock.tickAsync(10 * 60_000)
+    } finally {
+      clock.uninstall()
+    }
+    for (const core of b) core.replicate(muxB)
+
+    await assertLateReplication(a, b)
+  })
+})
+
+/**
+ * Two writer cores on peer A and their readers on peer B, connected the way
+ * LocalPeers connects peers: one shared Protomux per noise stream.
+ *
+ * @param {import('node:test').TestContext} t
+ * @param {{ keepAlive?: number }} [opts] keep-alive interval, as on internet connections
+ */
+async function setupLateReplication(t, { keepAlive = 0 } = {}) {
+  const a = [await createCore(t), await createCore(t)]
+  const b = [await createCore(t, a[0].key), await createCore(t, a[1].key)]
+  await a[0].append('hi')
+  await a[1].append('ho')
 
   const n1 = new NoiseSecretStream(true)
   const n2 = new NoiseSecretStream(false)
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
+  if (keepAlive) {
+    n1.setKeepAlive(keepAlive)
+    n2.setKeepAlive(keepAlive)
+  }
+  t.after(() => {
+    n1.destroy()
+    n2.destroy()
+  })
+  return { a, b, muxA: Protomux.from(n1), muxB: Protomux.from(n2) }
+}
 
-  const stream1 = Hypercore.createProtocolStream(n1)
-  const stream2 = Hypercore.createProtocolStream(n2)
+/**
+ * @param {Protomux} mux
+ * @param {number} count
+ */
+function waitForDiscoveryKeys(mux, count) {
+  const seen = new Set()
+  return new Promise((resolve) => {
+    mux.pair({ protocol: 'hypercore/alpha' }, async (discoveryKey) => {
+      seen.add(discoveryKey.toString('hex'))
+      if (seen.size === count) resolve(undefined)
+    })
+  })
+}
 
-  a1.replicate(stream1, { keepAlive: false })
-  a2.replicate(stream1, { keepAlive: false })
-
-  await a1.append('hi')
-  await a2.append('ho')
-
-  setTimeout(() => {
-    b1.replicate(stream2, { keepAlive: false })
-    b2.replicate(stream2, { keepAlive: false })
-  }, 7000)
-
-  assert.deepEqual(await b1.get(0), Buffer.from('hi'))
-  assert.deepEqual(await b2.get(0), Buffer.from('ho'))
-})
+/**
+ * @param {Hypercore[]} a
+ * @param {Hypercore[]} b
+ */
+async function assertLateReplication(a, b) {
+  for (const [i, core] of b.entries()) {
+    assert.deepEqual(await core.get(0), await a[i].get(0))
+  }
+}
 
 test('close()', async (t) => {
   const cm = createCoreManager(t)
