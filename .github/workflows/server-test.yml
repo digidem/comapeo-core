@@ -1,5 +1,5 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+# Runs test-e2e/server.js against real comapeo-cloud servers deployed to Fly,
+# which catches bugs that the in-process server misses.
 
 name: Server e2e cloud test
 
@@ -7,11 +7,25 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # Explicit bash runs with -eo pipefail
+    shell: bash
 
 jobs:
+  # Job id is `build` because main's branch protection requires a check of that name
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      # fly-cleanup.yml parses the run id out of these names
+      FLY_APP_PREFIX: comapeo-cloud-test-${{ github.run_id }}-${{ github.run_attempt }}-
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -20,7 +34,32 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: npm ci
       - run: npm run build --if-present
-      - run: node --test ./test-e2e/server.js
+      - name: Run server tests
+        # A step timeout, unlike the job timeout, still lets the steps below run
+        timeout-minutes: 25
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           REMOTE_TEST_SERVER: true
+          DEBUG: mapeo:*
+        run: |
+          mkdir -p server-test-logs
+          # Full debug output goes to the log artifact; the job log keeps the rest
+          node --test --test-force-exit ./test-e2e/server.js 2>&1 \
+            | tee server-test-logs/client.log \
+            | grep --line-buffered -vE '^\s*# \S+ mapeo:'
+      - name: Save server logs and destroy Fly apps
+        if: always()
+        run: |
+          mkdir -p server-test-logs
+          apps=$(flyctl apps list --org digidem --json \
+            | jq -r --arg p "$FLY_APP_PREFIX" '.[].Name | select(startswith($p))')
+          for app in $apps; do
+            flyctl logs --app "$app" --no-tail > "server-test-logs/$app.log" || true
+            flyctl apps destroy "$app" -y || true
+          done
+      - name: Upload logs
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-test-logs-${{ github.run_attempt }}
+          path: server-test-logs
+          if-no-files-found: ignore
