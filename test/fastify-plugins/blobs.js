@@ -2,14 +2,23 @@ import { randomBytes } from 'node:crypto'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync } from 'fs'
-import { readFile } from 'fs/promises'
+import { readFile, rm } from 'fs/promises'
 import path from 'path'
+import { setTimeout as delay } from 'node:timers/promises'
 import fastify from 'fastify'
+import Sqlite from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { temporaryDirectory } from 'tempy'
 
 import BlobServerPlugin from '../../src/fastify-plugins/blobs.js'
+import { BlobStore } from '../../src/blob-store/index.js'
 import { projectKeyToPublicId } from '../../src/utils.js'
 import { createBlobStore } from '../helpers/blob-store.js'
-import { waitForCores, replicate } from '../helpers/core-manager.js'
+import {
+  createCoreManager,
+  waitForCores,
+  replicate,
+} from '../helpers/core-manager.js'
 import { NotFoundError } from '../../src/errors.js'
 
 const BLOCK_SIZE = 64 * 1024
@@ -331,21 +340,71 @@ test('GET photo returns 404 when later blocks of the blob are not downloaded', a
   assert.equal(body.code, 'BLOB_NOT_AVAILABLE_ERROR')
 })
 
-test('GET photo returns 404 when the blob index is not fully downloaded', async (t) => {
-  const { data, server, projectPublicId, coreManager } = await setup(t)
+test(
+  'GET photo returns 404 when the blob index is not fully downloaded',
+  { timeout: 10_000 },
+  async (t) => {
+    const projectKey = randomBytes(32)
+    const peer2 = {
+      projectKey,
+      rootKey: randomBytes(16),
+      storage: temporaryDirectory(),
+      db: drizzle(new Sqlite(':memory:')),
+    }
+    const { blobStore: bs1, coreManager: cm1 } = createBlobStore(t, {
+      projectKey,
+    })
+    const [{ blobId }] = await populateStore(bs1)
+    const indexKey = cm1.getWriterCore('blobIndex').key
+    const blobKey = cm1.getWriterCore('blob').key
 
-  const [{ blobId }] = data
-  const indexCore = coreManager.getWriterCore('blobIndex').core
-  await indexCore.clear(indexCore.length - 1, indexCore.length)
+    const cm2 = createCoreManager(t, peer2, false)
+    const bs2 = new BlobStore({ coreManager: cm2 })
+    const { destroy } = await replicate(cm1, cm2)
+    await waitForCores(cm2, [indexKey, blobKey])
+    const remoteIndex = cm2.getCoreByKey(indexKey)
+    assert(remoteIndex)
+    const remoteBlobs = cm2.getCoreByKey(blobKey)
+    assert(remoteBlobs)
+    const localIndex = cm1.getWriterCore('blobIndex').core
+    const localBlobs = cm1.getWriterCore('blob').core
+    while (
+      remoteIndex.contiguousLength < localIndex.length ||
+      remoteBlobs.contiguousLength < localBlobs.length
+    ) {
+      await delay(20)
+    }
+    await destroy()
 
-  const res = await server.inject({
-    method: 'GET',
-    url: buildRouteUrl({ ...blobId, projectPublicId }),
-  })
+    // The new length is known but the last index block never arrived. A
+    // restart drops hyperbee's in-memory cache, which would otherwise serve it.
+    await remoteIndex.clear(remoteIndex.length - 1, remoteIndex.length)
+    await bs2.close()
+    await cm2.close()
 
-  assert.equal(res.statusCode, 404)
-  assert.equal(res.json().code, 'BLOB_NOT_AVAILABLE_ERROR')
-})
+    const cm2b = createCoreManager(t, peer2, false)
+    cm2b.addCore(indexKey, 'blobIndex')
+    cm2b.addCore(blobKey, 'blob')
+    const bs2b = new BlobStore({ coreManager: cm2b })
+    t.after(async () => {
+      await bs2b.close()
+      await cm2b.close()
+      await rm(peer2.storage, { recursive: true, force: true })
+    })
+    const server = createServer({ blobStore: bs2b, projectKey })
+
+    const res = await server.inject({
+      method: 'GET',
+      url: buildRouteUrl({
+        ...blobId,
+        projectPublicId: projectKeyToPublicId(projectKey),
+      }),
+    })
+
+    assert.equal(res.statusCode, 404)
+    assert.equal(res.json().code, 'BLOB_NOT_AVAILABLE_ERROR')
+  }
+)
 
 /**
  * @param {object} opts

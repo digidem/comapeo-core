@@ -12,7 +12,8 @@ links), a Fastify HTTP layer for serving blobs/icons/maps, and sync orchestratio
 ## Language & Runtime
 
 - **Plain JavaScript (ESM)** — source is `.js`, no build step for JS. `import`/`export` only, never `require`.
-- **Node.js 18** (`.nvmrc` = `18`; CI runs `18.x` and `20.x`).
+- **Node.js 24** (`.nvmrc` = `24`, matching the Node in the mobile and desktop apps; CI runs
+  `24.x` and `26.x`).
 - Types are expressed via **JSDoc** comments and a few `.ts` type files (`src/types.ts`,
   `src/utils_types.d.ts`, `src/generated/*.ts`), checked by `tsc --noEmit` with `checkJs`.
   There is **no** `ts-node`/transpile step — you never run `.ts`.

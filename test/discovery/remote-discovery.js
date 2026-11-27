@@ -2,7 +2,7 @@ import createTestnet from 'hyperdht/testnet.js'
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { KeyManager, keyToPublicId } from '@mapeo/crypto'
+import { KeyManager, keyToPublicId } from '@comapeo/crypto'
 import { pEvent } from 'p-event'
 import sodium from 'sodium-universal'
 import Protomux from 'protomux'
