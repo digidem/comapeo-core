@@ -34,6 +34,11 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: npm ci
       - run: npm run build --if-present
+      # The remote tests deploy a mutable tag, so record which image it was
+      - name: Show comapeo-cloud image
+        run: |
+          curl -fsS https://hub.docker.com/v2/repositories/communityfirst/comapeo-cloud/tags/latest \
+            | jq -r '"communityfirst/comapeo-cloud:latest \(.digest) pushed \(.last_updated)"' || true
       - name: Run server tests
         # A step timeout, unlike the job timeout, still lets the steps below run
         timeout-minutes: 25

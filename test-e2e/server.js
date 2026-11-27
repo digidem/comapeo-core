@@ -675,6 +675,7 @@ async function createRemoteTestServer(t) {
     appName,
   ])
 
+  // Retry transient Fly failures; a healthy deploy takes well under a minute
   const deployAttempts = 3
   for (let attempt = 1; ; attempt++) {
     try {
