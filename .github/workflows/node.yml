@@ -11,7 +11,7 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: ${{ matrix.os == 'windows-latest' && 60 || 15 }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -25,30 +25,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
       - run: npm run build --if-present
-      # Temporary: find which e2e file hangs on Windows. Drop before merging.
-      - name: Diagnose Windows e2e hang
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        shell: bash
-        env:
-          DEBUG: mapeo:*
-        run: |
-          set +e
-          timeout 300 node --test-reporter=tap --test-timeout=120000 test-e2e/cross-version-sync.js
-          echo "exit=$?"
-      - name: Run each e2e file alone on Windows
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        shell: bash
-        run: |
-          set +e
-          # exit=124 with every test "ok" means the process did not exit after its tests.
-          for f in test-e2e/*.js; do
-            echo "::group::$f"
-            timeout 300 node --test-reporter=tap --test-timeout=120000 "$f"
-            echo "exit=$?"
-            echo "::endgroup::"
-          done
       - run: npm test
         env:
           DEBUG: ${{ runner.debug == '1' && 'mapeo:*' || '' }}
