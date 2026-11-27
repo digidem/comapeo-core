@@ -190,18 +190,10 @@ export class PeerSyncController {
   /**
    * Re-read this peer's role and update {@link #syncCapability}.
    *
-   * Preserve auth capability as a workaround for the BLOCKED role currently
-   * disallowing sync of auth - with this fix it would mean that a blocked user
-   * never learns that they have been blocked (because their auth core never
-   * syncs). Once we update the BLOCKED role defaults, we can remove the
-   * preservation of auth capability.
-   *
    * @returns {Promise<void>}
    */
   async #refreshSyncCapability() {
-    const prevAuth = this.#syncCapability.auth
     await this.#readAndCacheSyncCapability()
-    this.#syncCapability.auth = prevAuth
     this.#updateEnabledNamespaces()
   }
 

@@ -341,7 +341,7 @@ class MockInviteLinksApiForProject {
  * @param {Buffer} [opts.rootKey]
  * @param {(url: string) => WebSocket} [opts.makeWebsocket]
  * @param {() => import('../src/types.js').ReplicationStream} [opts.getReplicationStream]
- * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} [opts.waitForInitialSyncWithPeer]
+ * @param {(deviceId: string, namespaces: ReadonlyArray<import('../src/types.js').Namespace>, abortSignal: AbortSignal) => Promise<void>} [opts.waitForSyncWithPeer]
  * @param {() => Promise<import('../src/mapeo-project.js').EditableProjectSettings>} [opts.getProjectSettings]
  * @param {(deviceId: string) => Promise<import('../src/member-api.js').MemberDeviceInfo>} [opts.getDeviceInfo]
  * @param {(deviceId: string, deviceInfo: import('../src/member-api.js').NewDeviceInfo) => Promise<void>} [opts.setDeviceInfo]
@@ -360,7 +360,7 @@ function setup({
       createdAt: new Date().toString(),
     }),
   setDeviceInfo = () => Promise.reject(new Error('Not implemented')),
-  waitForInitialSyncWithPeer = () => Promise.resolve(),
+  waitForSyncWithPeer = () => Promise.resolve(),
   makeWebsocket = () => {
     throw new Error('Not implemented')
   },
@@ -394,7 +394,7 @@ function setup({
     inviteLinkRPC: /** @type {any} */ (inviteLinkRPC),
     makeWebsocket,
     getReplicationStream,
-    waitForInitialSyncWithPeer,
+    waitForSyncWithPeer,
     getProjectSettings,
     getDeviceInfo,
     setDeviceInfo,
