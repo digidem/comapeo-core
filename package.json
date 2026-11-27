@@ -246,7 +246,6 @@
   },
   "overrides": {
     "better-sqlite3": "$better-sqlite3",
-    "buffer": "^6.0.3",
     "sodium-native": "^5.2.2"
   }
 }
