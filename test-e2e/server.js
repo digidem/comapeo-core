@@ -649,6 +649,11 @@ async function createRemoteTestServer(t) {
     timeout: 3 * 60_000,
   })
   await installCloudServer
+  // Keep the runner's node_modules out of the image: their native builds need a newer glibc than the image has
+  await fsPromises.writeFile(
+    fileURLToPath(new URL('.dockerignore', comapeoCloudUrl)),
+    'node_modules\n'
+  )
 
   const appName = FLY_APP_PREFIX + Math.random().toString(36).slice(8)
 
