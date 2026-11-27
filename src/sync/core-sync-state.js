@@ -139,6 +139,7 @@ export class CoreSyncState {
         // @ts-ignore - internal property
         core?.core?.bitfield
       )
+      this.#update()
     })
 
     for (const peer of this.#core.peers) {

@@ -140,6 +140,7 @@ export class NamespaceSyncState {
     const discoveryId = discoveryKey(coreKey).toString('hex')
     this.#getCoreState(discoveryId).attachCore(core)
     this.#coreCount++
+    this.#handleUpdate()
   }
 
   /**

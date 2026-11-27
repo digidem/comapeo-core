@@ -210,3 +210,25 @@ test('replicate with updating data', async function (t) {
   await Promise.all([syncState1Sync.promise, syncState2Sync.promise])
   await Promise.all([blobStore1.close(), blobStore2.close()])
 })
+
+test('state includes cores added after it was read', async (t) => {
+  const cm = createCoreManager(t)
+  // Only used by the blob namespace
+  const blobStore = /** @type {any} */ ({})
+  let updates = 0
+  const syncState = new NamespaceSyncState({
+    coreManager: cm,
+    blobStore,
+    namespace: 'config',
+    onUpdate: () => updates++,
+    peerSyncControllers: new Map(),
+  })
+
+  const before = syncState.getState().coreCount
+  const updatesBefore = updates
+  cm.addCore(randomBytes(32), 'config')
+  await new Promise((resolve) => process.nextTick(resolve))
+
+  assert.equal(syncState.getState().coreCount, before + 1)
+  assert(updates > updatesBefore, 'onUpdate called for the new core')
+})
