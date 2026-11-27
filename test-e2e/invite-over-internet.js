@@ -5,7 +5,8 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { createManager, createManagers } from './utils.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import createTestnet from 'hyperdht/testnet.js'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
+import { keyManagerFixture } from '../test/helpers/key-manager.js'
 import { RemoteDiscovery } from '../src/discovery/remote-discovery.js'
 import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
@@ -810,12 +811,8 @@ test('untrusted peer is disconnected after untrustedTimeout', async (t) => {
   const { swarmPublicKey } = parseInviteURL(url)
 
   // Create a separate RemoteDiscovery to connect as an untrusted peer
-  const identityKeypair = new KeyManager(
-    Buffer.alloc(16, 99)
-  ).getIdentityKeypair()
-  const swarmKeypair = new KeyManager(
-    Buffer.alloc(16, 100)
-  ).getIdentityKeypair()
+  const identityKeypair = keyManagerFixture(99).getIdentityKeypair()
+  const swarmKeypair = keyManagerFixture(100).getIdentityKeypair()
 
   const remoteDiscovery = new RemoteDiscovery({
     identityKeypair,

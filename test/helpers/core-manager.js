@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import fsPromises from 'node:fs/promises'
 
 import Sqlite from 'better-sqlite3'
-import { KeyManager } from '@comapeo/crypto'
+import { keyManagerFixture } from './key-manager.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
@@ -15,16 +15,18 @@ import {
 import { NAMESPACES } from '../../src/constants.js'
 /** @import { Namespace } from '../../src/types.js' */
 
+let nextKeyIndex = 0
+
 /**
  * @param {import('node:test').TestContext} t
- * @param {Partial<ConstructorParameters<typeof CoreManager>[0]> & { rootKey?: Buffer }} options
+ * @param {Partial<ConstructorParameters<typeof CoreManager>[0]> & { keyManager?: import('@comapeo/crypto').KeyManager }} options
  * @param {boolean?} cleanup
  * @returns {CoreManager}
  */
 export function createCoreManager(
   t,
   {
-    rootKey = randomBytes(16),
+    keyManager = keyManagerFixture(nextKeyIndex++),
     projectKey = randomBytes(32),
     db = drizzle(new Sqlite(':memory:')),
     ...opts
@@ -37,8 +39,6 @@ export function createCoreManager(
   })
 
   const storage = temporaryDirectory()
-
-  const keyManager = new KeyManager(rootKey)
 
   const manager = new CoreManager({
     db,

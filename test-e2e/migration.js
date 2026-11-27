@@ -87,6 +87,8 @@ test('migrations pick up values that were not previously understood', async (t) 
   const manager2AfterMigration = createManager('b', t, {
     dbFolder: manager2DbFolder,
     coreStorage: manager2CoreStorage,
+    // Re-opens the old manager's storage; identity must match its KDF.
+    realIdentity: true,
   })
 
   {

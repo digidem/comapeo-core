@@ -14,6 +14,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { getProperty } from 'dot-prop-extra'
 
 import { MapeoManager, roles } from '../src/index.js'
+import { masterKeyFor } from '../test/helpers/key-manager.js'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import { createHash, randomBytes, randomInt } from 'node:crypto'
@@ -217,6 +218,29 @@ export async function waitForPeers(
 }
 
 /**
+ * Per-process identity counter, shared by `createManagers` and `createManager`.
+ * Modulo 255 so it wraps; no single test ever creates enough managers to
+ * collide. `identityIndexBySeed` lets `createManager` reuse an index for a
+ * repeated seed so re-opening the same name keeps a stable identity.
+ */
+let identityCounter = 0
+const identityIndexBySeed = new Map()
+
+/**
+ * A deterministic 0-254 key index for a seed. New seeds take the next counter
+ * value; repeated seeds reuse their index.
+ *
+ * @param {string} seed
+ * @returns {number}
+ */
+function identityIndexFor(seed) {
+  if (!identityIndexBySeed.has(seed)) {
+    identityIndexBySeed.set(seed, identityCounter++ % 255)
+  }
+  return /** @type {number} */ (identityIndexBySeed.get(seed))
+}
+
+/**
  * Create `count` manager instances. Each instance has a deterministic identity
  * keypair so device IDs should be consistent between tests.
  *
@@ -246,10 +270,15 @@ export async function createManagers(
     Array(count)
       .fill(null)
       .map(async (_, i) => {
-        const opts = testnet
-          ? { ...overrides, swarm: { dht: testnet.nodes[0] } }
-          : overrides
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
+        const opts = {
+          ...overrides,
+          // Pre-derive the master key (per-process counter, wraps at 255) so
+          // spawning N managers skips N Argon2 KDFs. Explicit override wins.
+          masterKey:
+            overrides.masterKey ?? masterKeyFor(identityCounter++ % 255),
+          ...(testnet ? { swarm: { dht: testnet.nodes[0] } } : {}),
+        }
         const manager = createManager(name, t, opts)
         await manager.setDeviceInfo({ name, deviceType })
         return manager
@@ -260,10 +289,11 @@ export async function createManagers(
 /**
  * @param {string} seed
  * @param {import('node:test').TestContext} t
- * @param {Partial<ConstructorParameters<typeof MapeoManager>[0]>} [overrides]
+ * @param {Partial<ConstructorParameters<typeof MapeoManager>[0]> & { realIdentity?: boolean }} [overrides]
  * @returns {MapeoManager}
  */
 export function createManager(seed, t, overrides = {}) {
+  const { realIdentity, ...rest } = overrides
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
   const directories = [dbFolder, coreStorage]
@@ -280,6 +310,15 @@ export function createManager(seed, t, overrides = {}) {
   const fastify = Fastify()
   const listenPromise = fastify.listen()
 
+  // Pre-derive the master key (deterministic per seed) so we skip the Argon2
+  // KDF. Callers that pass their own identity (`rootKey`/`masterKey`) or opt
+  // into the real KDF (`realIdentity`, for cross-version storage re-opens) are
+  // left alone.
+  const preDerivedMasterKey =
+    rest.masterKey === undefined && rest.rootKey === undefined && !realIdentity
+      ? masterKeyFor(identityIndexFor(seed))
+      : undefined
+
   const manager = new MapeoManager({
     rootKey: getRootKey(seed),
     projectMigrationsFolder,
@@ -287,7 +326,8 @@ export function createManager(seed, t, overrides = {}) {
     dbFolder,
     coreStorage,
     fastify,
-    ...overrides,
+    ...(preDerivedMasterKey ? { masterKey: preDerivedMasterKey } : {}),
+    ...rest,
   })
 
   t.after(async () => {

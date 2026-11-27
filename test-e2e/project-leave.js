@@ -470,7 +470,12 @@ test('leaving a project before PR#1125 persists after PR#1125', async (t) => {
   await manager4_1_4.leaveProject(projectId)
   await project.close()
 
-  const managerNew = await createManager('a', t, { dbFolder, coreStorage })
+  const managerNew = await createManager('a', t, {
+    dbFolder,
+    coreStorage,
+    // Re-opens the old manager's storage; identity must match its KDF.
+    realIdentity: true,
+  })
 
   const projectsList = await managerNew.listProjects()
   assert.equal(projectsList.length, 0, 'no projects listed')

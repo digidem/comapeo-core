@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { randomBytes } from 'crypto'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
-import { KeyManager } from '@comapeo/crypto'
+import { deviceKeyFixture } from '../test/helpers/key-manager.js'
 import FakeTimers from '@sinonjs/fake-timers'
 import { Agent, fetch as uFetch } from 'undici'
 import fs from 'fs/promises'
@@ -29,7 +29,7 @@ test('start/stop lifecycle', async (t) => {
   const { dbFolder, coreStorage } = makeManagerStorage(t)
 
   const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
+    ...deviceKeyFixture(),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder,
@@ -98,7 +98,7 @@ test('retrieving blobs using url', async (t) => {
   const { dbFolder, coreStorage } = makeManagerStorage(t)
 
   const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
+    ...deviceKeyFixture(),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder,
@@ -196,7 +196,7 @@ test('retrieving icons using url', async (t) => {
   const { dbFolder, coreStorage } = makeManagerStorage(t)
 
   const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
+    ...deviceKeyFixture(),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder,
@@ -299,7 +299,7 @@ test('retrieving audio file', async (t) => {
   const { dbFolder, coreStorage } = makeManagerStorage(t)
 
   const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
+    ...deviceKeyFixture(),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder,
@@ -353,7 +353,7 @@ test('retrieving style.json using stable url', async (t) => {
   const { dbFolder, coreStorage } = makeManagerStorage(t)
 
   const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
+    ...deviceKeyFixture(),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder,
