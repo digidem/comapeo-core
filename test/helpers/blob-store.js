@@ -10,14 +10,15 @@ import { createCoreManager } from './core-manager.js'
  * @param {import('node:test').TestContext} t
  * @param {Object} [opts]
  * @param {Buffer} [opts.projectKey]
+ * @param {boolean} [opts.isArchiveDevice]
  */
-export function createBlobStore(t, opts) {
+export function createBlobStore(t, { isArchiveDevice, ...opts } = {}) {
   t.after(async () => {
     await blobStore.close()
     await coreManager.close()
   })
   const coreManager = createCoreManager(t, opts, false)
-  const blobStore = new BlobStore({ coreManager })
+  const blobStore = new BlobStore({ coreManager, isArchiveDevice })
   return { blobStore, coreManager }
 }
 
