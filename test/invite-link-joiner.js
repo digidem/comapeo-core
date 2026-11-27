@@ -9,11 +9,18 @@ import { InviteLinkJoiner } from '../src/invite/invite-link-joiner.js'
 import { makeInviteURL } from '../src/invite/invite-urls.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { MockInviteLinkRPC } from './helpers/invite-link-rpc.js'
-import { ensureKnownError, InviteExpiredError } from '../src/errors.js'
+import {
+  AlreadyJoinedError,
+  InviteExpiredError,
+  ExistingJoinRequestError,
+  JoinProjectCancelledError,
+  ConnectionLostError,
+} from '../src/errors.js'
 
 /** @import { RemoteAuthedNoiseStream } from '../src/discovery/remote-discovery.js' */
 /** @import { Invite, InviteApi } from '../src/invite/invite-api.js' */
-/** @import { JoinRequestUpdate } from '../src/invite/invite-link-joiner.js' */
+/** @import { JoinRequest } from '../src/invite/invite-link-joiner.js' */
+/** @import { KnownError } from '../src/errors.js' */
 
 /**
  * @param {Buffer} authenticatedPublicKey
@@ -31,18 +38,25 @@ function mockConnection(authenticatedPublicKey) {
 /**
  * @typedef {object} MockInviteApiOptions
  * @property {string} [projectId] Project ID returned by accept (default: random)
+ * @property {Promise<unknown>} [acceptGate] If set, accept awaits this before resolving
  */
 
 class MockInviteApi extends TypedEmitter {
   /** @type {string} */
   #projectId
+  /** @type {Promise<unknown>|undefined} */
+  #acceptGate
 
   /**
    * @param {MockInviteApiOptions} [opts]
    */
-  constructor({ projectId = randomBytes(20).toString('hex') } = {}) {
+  constructor({
+    projectId = randomBytes(20).toString('hex'),
+    acceptGate,
+  } = {}) {
     super()
     this.#projectId = projectId
+    this.#acceptGate = acceptGate
   }
 
   /**
@@ -50,6 +64,7 @@ class MockInviteApi extends TypedEmitter {
    * @returns {Promise<string>}
    */
   async accept(_invite) {
+    if (this.#acceptGate) await this.#acceptGate
     return this.#projectId
   }
 }
@@ -132,9 +147,16 @@ test('happy path: connect, redeem, accept, complete', async () => {
     getDeviceInfo: async () => ({ name: 'invitee' }),
   })
 
-  /** @type {JoinRequestUpdate[]} */
+  /** @type {JoinRequest[]} */
   const updates = []
-  joiner.on('join-request-update', (update) => updates.push(update))
+  /** @type {KnownError|undefined} */
+  let lastError
+  joiner.on('join-request-update', (update) => {
+    updates.push(update)
+  })
+  joiner.on('join-request-error', (error) => {
+    lastError = error
+  })
 
   const onConnected = pEvent(joiner, 'join-request-update', {
     timeout: 1000,
@@ -163,7 +185,12 @@ test('happy path: connect, redeem, accept, complete', async () => {
     updates.map((u) => u.status),
     ['connecting', 'connected', 'accepted', 'completed']
   )
-  assert.equal(updates[3].projectId, ctx.projectId)
+
+  // No error is emitted as a separate parameter
+  assert.equal(lastError, undefined)
+  const completedUpdate = updates.find((u) => u.status === 'completed')
+  assert.ok(completedUpdate)
+  assert.equal(completedUpdate.projectId, ctx.projectId)
 
   // Verify waitForPeer was called with identity key (not swarm key)
   assert.deepEqual(mockRpc.waitForPeerCalls, [identityKey])
@@ -185,10 +212,12 @@ test('happy path: connect, redeem, accept, complete', async () => {
   // Verify disconnect was NOT called on happy path
   assert.equal(mockRpc.disconnectCalls.length, 0)
 
-  // Verify join request is removed from pending
-  assert.throws(() => joiner.getJoinRequestById(ctx.inviteId.toString('hex')), {
-    code: 'JOIN_REQUEST_NOT_FOUND_ERROR',
-  })
+  // Completed requests persist in pending until the next createJoinRequest
+  const completed = joiner.getJoinRequestById(ctx.inviteId.toString('hex'))
+  assert.equal(completed.status, 'completed')
+  assert.equal(completed.projectId, ctx.projectId)
+  assert.equal(joiner.getJoinRequests().length, 1)
+  assert.equal(joiner.getJoinRequests()[0].status, 'completed')
 
   ctx.connection.end()
 })
@@ -209,9 +238,16 @@ test('deny: inviter denies the invite', async () => {
     getDeviceInfo: async () => ({ name: 'invitee' }),
   })
 
-  /** @type {JoinRequestUpdate[]} */
+  /** @type {JoinRequest[]} */
   const updates = []
-  joiner.on('join-request-update', (update) => updates.push(update))
+  /** @type {KnownError|undefined} */
+  let lastError
+  joiner.on('join-request-update', (update) => {
+    updates.push(update)
+  })
+  joiner.on('join-request-error', (error) => {
+    lastError = error
+  })
 
   const onFailed = pEvent(joiner, 'join-request-update', {
     timeout: 1000,
@@ -246,15 +282,73 @@ test('deny: inviter denies the invite', async () => {
   const failedUpdate = updates.find((u) => u.status === 'failed')
   assert.ok(failedUpdate)
   assert.ok(failedUpdate.error)
-  assert.equal(
-    ensureKnownError(failedUpdate.error).code,
-    'INVITE_DENIED_BY_INVITER_ERROR'
-  )
+  assert.equal(failedUpdate.error, 'INVITE_DENIED_BY_INVITER_ERROR')
+
+  // Error is also emitted as a separate parameter (the full KnownError)
+  assert.ok(lastError)
+  assert.equal(lastError.code, failedUpdate.error)
+  assert.equal(lastError.code, 'INVITE_DENIED_BY_INVITER_ERROR')
+
+  // Failed requests persist in pending until the next createJoinRequest
+  const failed = joiner.getJoinRequestById(ctx.inviteId.toString('hex'))
+  assert.equal(failed.status, 'failed', 'expected failed status')
+  assert.ok(failed.error)
+  assert.equal(joiner.getJoinRequests().length, 1)
 
   ctx.connection.end()
 })
 
-test('connection close: peer disconnects before invite arrives', async () => {
+test('deny: inviter auto-denies an already-joined peer', async () => {
+  const ctx = makeTestContext()
+  const identityKey = ctx.authenticatedPublicKey.toString('hex')
+  const inviteApi = new MockInviteApi({ projectId: ctx.projectId })
+  const mockRpc = new MockInviteLinkRPC({
+    inviteApi,
+    denyReason: 'already_joined',
+  })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => ctx.connection,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  /** @type {JoinRequest[]} */
+  const updates = []
+  /** @type {KnownError|undefined} */
+  let lastError
+  joiner.on('join-request-update', (update) => {
+    updates.push(update)
+  })
+  joiner.on('join-request-error', (error) => {
+    lastError = error
+  })
+
+  const onFailed = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'failed',
+  })
+
+  joiner.createJoinRequest(ctx.url)
+
+  await onFailed
+
+  const failedUpdate = updates.find((u) => u.status === 'failed')
+  assert.ok(failedUpdate)
+  assert.equal(failedUpdate.error, AlreadyJoinedError.code)
+
+  assert.ok(lastError)
+  assert.equal(lastError.code, AlreadyJoinedError.code)
+
+  // denyAck was sent for the auto-deny, and the connection was torn down
+  assert.equal(mockRpc.denyAckCalls.length, 1)
+  assert.deepEqual(mockRpc.disconnectCalls, [identityKey])
+
+  ctx.connection.end()
+})
+
+test('connection close: peer disconnects after redeem', async () => {
   const ctx = makeTestContext()
   const identityKey = ctx.authenticatedPublicKey.toString('hex')
   const inviteApi = new MockInviteApi({ projectId: ctx.projectId })
@@ -267,9 +361,16 @@ test('connection close: peer disconnects before invite arrives', async () => {
     getDeviceInfo: async () => ({ name: 'invitee' }),
   })
 
-  /** @type {JoinRequestUpdate[]} */
+  /** @type {JoinRequest[]} */
   const updates = []
-  joiner.on('join-request-update', (update) => updates.push(update))
+  /** @type {KnownError|undefined} */
+  let lastError
+  joiner.on('join-request-update', (update) => {
+    updates.push(update)
+  })
+  joiner.on('join-request-error', (error) => {
+    lastError = error
+  })
 
   const onFailed = pEvent(joiner, 'join-request-update', {
     timeout: 2000,
@@ -300,12 +401,243 @@ test('connection close: peer disconnects before invite arrives', async () => {
   // Verify markReady was called (happens before the close race)
   assert.deepEqual(mockRpc.markReadyCalls, [identityKey])
 
-  // Verify the error is wrapped as InviteConnectionError
+  // The connection closed after the redeem was sent, so it's a ConnectionLostError
   const failedUpdate = updates.find((u) => u.status === 'failed')
   assert.ok(failedUpdate)
   assert.ok(failedUpdate.error)
-  assert.equal(
-    ensureKnownError(failedUpdate.error).code,
-    'INVITE_CONNECTION_ERROR'
+  assert.equal(failedUpdate.error, ConnectionLostError.code)
+
+  // Error is also emitted as a separate parameter (the full KnownError)
+  assert.ok(lastError)
+  assert.equal(lastError.code, failedUpdate.error)
+  assert.equal(lastError.code, ConnectionLostError.code)
+})
+
+test('connection close: peer disconnects during initial sync', async () => {
+  const ctx = makeTestContext()
+  const identityKey = ctx.authenticatedPublicKey.toString('hex')
+  // accept hangs on a gate that never resolves, simulating a long initial sync
+  const inviteApi = new MockInviteApi({
+    projectId: ctx.projectId,
+    acceptGate: new Promise(() => {}),
+  })
+  const mockRpc = new MockInviteLinkRPC({ inviteApi })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => ctx.connection,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  /** @type {JoinRequest[]} */
+  const updates = []
+  /** @type {KnownError|undefined} */
+  let lastError
+  joiner.on('join-request-update', (update) => {
+    updates.push(update)
+  })
+  joiner.on('join-request-error', (error) => {
+    lastError = error
+  })
+
+  const onAccepted = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'accepted',
+  })
+  const onFailed = pEvent(joiner, 'join-request-update', {
+    timeout: 2000,
+    filter: ({ status }) => status === 'failed',
+  })
+
+  joiner.createJoinRequest(ctx.url)
+
+  // Reach 'accepted' (invite arrived, initial sync now in progress), then drop
+  // the connection mid-sync.
+  await onAccepted
+  ctx.connection.destroy()
+
+  await onFailed
+
+  // Status transitions: connecting → connected → accepted → failed
+  assert.deepEqual(
+    updates.map((u) => u.status),
+    ['connecting', 'connected', 'accepted', 'failed']
   )
+
+  assert.equal(mockRpc.redeemCalls[0].deviceId, identityKey)
+  assert.deepEqual(mockRpc.disconnectCalls, [identityKey])
+
+  const failedUpdate = updates.find((u) => u.status === 'failed')
+  assert.ok(failedUpdate)
+  assert.equal(failedUpdate.error, ConnectionLostError.code)
+
+  assert.ok(lastError)
+  assert.equal(lastError.code, ConnectionLostError.code)
+
+  ctx.connection.end()
+})
+
+test('finished requests are kept when a new invite starts', async () => {
+  const ctxA = makeTestContext()
+  const ctxB = makeTestContext()
+  const connections = new Map([
+    [ctxA.swarmPublicKey.toString('hex'), ctxA.connection],
+    [ctxB.swarmPublicKey.toString('hex'), ctxB.connection],
+  ])
+  const inviteApi = new MockInviteApi({ projectId: ctxB.projectId })
+  const mockRpc = new MockInviteLinkRPC({ inviteApi })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async (swarmHex) => {
+      const c = connections.get(swarmHex)
+      assert.ok(c)
+      return c
+    },
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  const inviteIdA = ctxA.inviteId.toString('hex')
+  const inviteIdB = ctxB.inviteId.toString('hex')
+
+  // Request A completes and stays in pending
+  const onCompletedA = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: (u) => u.inviteId === inviteIdA && u.status === 'completed',
+  })
+  joiner.createJoinRequest(ctxA.url)
+  await onCompletedA
+  assert.ok(
+    joiner
+      .getJoinRequests()
+      .some((r) => r.inviteId === inviteIdA && r.status === 'completed')
+  )
+
+  // Request B (different invite) starts without clearing the finished A
+  const onCompletedB = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: (u) => u.inviteId === inviteIdB && u.status === 'completed',
+  })
+  joiner.createJoinRequest(ctxB.url)
+
+  assert.ok(
+    joiner
+      .getJoinRequests()
+      .some((r) => r.inviteId === inviteIdA && r.status === 'completed')
+  )
+  assert.ok(
+    joiner
+      .getJoinRequests()
+      .some((r) => r.inviteId === inviteIdB && r.status === 'connecting')
+  )
+
+  await onCompletedB
+  assert.deepEqual(
+    joiner.getJoinRequests().map((r) => r.inviteId),
+    [inviteIdA, inviteIdB]
+  )
+})
+
+test('a new join request is allowed for the same invite after a previous failure', async () => {
+  const ctx = makeTestContext()
+  const inviteApi = new MockInviteApi({ projectId: ctx.projectId })
+  const mockRpc = new MockInviteLinkRPC({
+    inviteApi,
+    denyReason: 'invitor_denied',
+  })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => ctx.connection,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  const inviteId = ctx.inviteId.toString('hex')
+
+  const onFailed = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'failed',
+  })
+  joiner.createJoinRequest(ctx.url)
+  await onFailed
+  assert.equal(joiner.getJoinRequestById(inviteId).status, 'failed')
+
+  // Re-clicking the same link now starts a fresh request instead of throwing
+  const fresh = joiner.createJoinRequest(ctx.url)
+  assert.equal(fresh.status, 'connecting')
+  assert.equal(fresh.inviteId, inviteId)
+
+  joiner.cancelJoinRequest(inviteId)
+  ctx.connection.end()
+})
+
+test('an in-flight request for the same invite is not cleared', async () => {
+  const ctx = makeTestContext()
+  const inviteApi = new MockInviteApi({ projectId: ctx.projectId })
+  const mockRpc = new MockInviteLinkRPC({ inviteApi, noResponse: true })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => ctx.connection,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  const inviteId = ctx.inviteId.toString('hex')
+
+  // Stays in-flight because the mock never responds
+  const onConnected = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'connected',
+  })
+  joiner.createJoinRequest(ctx.url)
+  await onConnected
+
+  // Only failed/completed are cleared, so the in-flight one is still guarded
+  assert.throws(
+    () => joiner.createJoinRequest(ctx.url),
+    ExistingJoinRequestError
+  )
+  assert.equal(joiner.getJoinRequestById(inviteId).status, 'connected')
+
+  ctx.connection.destroy()
+})
+
+test('cancel leaves the request in the list as failed', async () => {
+  const ctx = makeTestContext()
+  const inviteApi = new MockInviteApi({ projectId: ctx.projectId })
+  const mockRpc = new MockInviteLinkRPC({ inviteApi, noResponse: true })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => ctx.connection,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  const inviteId = ctx.inviteId.toString('hex')
+
+  const onConnected = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'connected',
+  })
+  joiner.createJoinRequest(ctx.url)
+  await onConnected
+
+  const onFailed = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'failed',
+  })
+  joiner.cancelJoinRequest(inviteId)
+  await onFailed
+
+  // The cancelled request lingers in the list as failed (it is not removed)
+  const cancelled = joiner.getJoinRequestById(inviteId)
+  if (cancelled.status !== 'failed') throw new Error('expected failed status')
+  assert.equal(cancelled.error, JoinProjectCancelledError.code)
+
+  ctx.connection.end()
 })

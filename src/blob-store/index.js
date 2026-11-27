@@ -164,6 +164,7 @@ export class BlobStore extends ReadyResource {
     }
     this.#downloader = new Downloader(this.#driveIndex, {
       filter: downloadFilter,
+      logger: this.#l,
     })
     this.#downloader.on('error', (error) => this.emit('error', error))
 
@@ -205,6 +206,7 @@ export class BlobStore extends ReadyResource {
     this.#downloader.close().catch(noop)
     this.#downloader = new Downloader(this.#driveIndex, {
       filter: blobDownloadFilter,
+      logger: this.#l,
     })
     this.#downloader.on('error', (error) => this.emit('error', error))
     // Even if blobFilter is null, e.g. we plan to download everything, we still
@@ -331,11 +333,8 @@ export class BlobStore extends ReadyResource {
 
     const { blockOffset, blockLength } = entry.value.blob
 
-    const core = blobs.core.session()
     try {
-      const start = blockOffset
-      const end = blockOffset + blockLength
-      return core.has(start, end)
+      return await blobs.core.has(blockOffset, blockOffset + blockLength)
     } catch {
       return false
     }

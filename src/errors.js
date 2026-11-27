@@ -268,6 +268,12 @@ export const BlobNotFoundError = createErrorClass({
   status: 404,
 })
 
+export const BlobNotAvailableError = createErrorClass({
+  code: 'BLOB_NOT_AVAILABLE_ERROR',
+  message: 'Blob is not fully available locally',
+  status: 404,
+})
+
 export const InvalidIconSizeError = createErrorClass({
   code: 'INVALID_ICON_SIZE_ERROR',
   message: '{value} is not a valid icon size',
@@ -458,10 +464,10 @@ export const InvalidInviteError = createErrorClass({
   status: 400,
 })
 
-export const InviteRedeemConnectionClosedError = createErrorClass({
-  code: 'INVITE_REDEEM_CONNECTION_CLOSED_ERROR',
-  message: 'Connection closed before invite redeem',
-  status: 408,
+export const ConnectionLostError = createErrorClass({
+  code: 'CONNECTION_LOST_ERROR',
+  message: 'Connection to the inviter was lost',
+  status: 502,
 })
 
 export const InviteConnectionError = createErrorClass({
@@ -624,7 +630,7 @@ export const InviteLinkAlreadyExistsError = createErrorClass({
 
 export const InviteDeniedByInviterError = createErrorClass({
   code: 'INVITE_DENIED_BY_INVITER_ERROR',
-  message: 'Invitation denied by project inviter, reason: {reason}',
+  message: 'Invitation denied by project inviter',
   status: 403,
 })
 

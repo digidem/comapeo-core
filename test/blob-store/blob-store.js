@@ -16,6 +16,7 @@ import {
 } from '../../src/blob-store/index.js'
 import { concat } from '../helpers/blob-store.js'
 import { discoveryKey } from 'hypercore-crypto'
+import Hyperdrive from 'hyperdrive'
 import { setTimeout as delay } from 'node:timers/promises'
 import { Logger } from '../../src/logger.js'
 
@@ -337,6 +338,66 @@ test('download all blobs', async function (t) {
   )
 })
 
+test('an error processing one entry does not stop later downloads', async (t) => {
+  const projectKey = randomBytes(32)
+  const { blobStore: bs1, coreManager: cm1 } = testenv(t, { projectKey })
+  const { blobStore: bs2, coreManager: cm2 } = testenv(t, { projectKey })
+  /** @type {Error[]} */
+  const errors = []
+  bs2.on('error', (e) => errors.push(e))
+
+  const [blob1, blob2, blob3] = [1, 2, 3].map(() => randomBytes(TEST_BUF_SIZE))
+  const [blob1Id, blob2Id, blob3Id] = [1, 2, 3].map((n) => ({
+    type: /** @type {const} */ ('photo'),
+    variant: /** @type {const} */ ('original'),
+    name: `blob${n}`,
+  }))
+
+  const driveId = await bs1.put(blob1Id, blob1)
+  const { destroy } = await replicate(cm1, cm2)
+  t.after(destroy)
+  assert.deepEqual(
+    await waitForBlob(bs2, { ...blob1Id, driveId }),
+    blob1,
+    'blob1 was downloaded'
+  )
+
+  // Make getBlobs() reject once on bs2's copy of bs1's drive, which is the
+  // next thing the downloader does for a new entry on that drive.
+  const origGetBlobs = Hyperdrive.prototype.getBlobs
+  t.after(() => {
+    Hyperdrive.prototype.getBlobs = origGetBlobs
+  })
+  const blobIndexKey = cm1.getWriterCore('blobIndex').key
+  /** @type {Promise<void>} */
+  const getBlobsRejected = new Promise((resolve) => {
+    /** @this {Hyperdrive} */
+    Hyperdrive.prototype.getBlobs = async function () {
+      if (this.db.core.writable || !this.db.core.key?.equals(blobIndexKey)) {
+        return origGetBlobs.call(this)
+      }
+      Hyperdrive.prototype.getBlobs = origGetBlobs
+      resolve()
+      throw new Error('Simulated getBlobs() failure')
+    }
+  })
+  await bs1.put(blob2Id, blob2)
+  await Promise.race([
+    getBlobsRejected,
+    delay(2000).then(() => {
+      throw new Error('getBlobs() stub was not called')
+    }),
+  ])
+
+  await bs1.put(blob3Id, blob3)
+  assert.deepEqual(
+    await waitForBlob(bs2, { ...blob3Id, driveId }),
+    blob3,
+    'blob3 was downloaded after the error'
+  )
+  assert.deepEqual(errors, [], 'no error was emitted')
+})
+
 test('filtered download, filter changed', async function (t) {
   const projectKey = randomBytes(32)
   const { blobStore: bs1, coreManager: cm1 } = testenv(t, { projectKey })
@@ -602,6 +663,26 @@ test('blobStore.createEntriesReadStream({ live: true })', async (t) => {
 
   assert.equal(entries.length, 2, '2 entries from replicated blobStore')
 })
+
+/**
+ * Downloads happen in the background, so poll until the blob is available.
+ *
+ * @param {BlobStore} blobStore
+ * @param {import('../../src/types.js').BlobId} blobId
+ * @param {{ timeout?: number }} [opts]
+ * @returns {Promise<Uint8Array>}
+ */
+async function waitForBlob(blobStore, blobId, { timeout = 5000 } = {}) {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    try {
+      return await blobStore.get(blobId)
+    } catch {
+      await delay(50)
+    }
+  }
+  throw new Error(`Blob ${blobId.name} not downloaded within ${timeout}ms`)
+}
 
 /** @returns {import('../../src/types.js').BlobId} */
 function randomBlobId() {
