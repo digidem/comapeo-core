@@ -187,9 +187,9 @@ streams of that shape.
   Don't use `random-access-memory` (`RAM`) for new tests: it is synchronous, so tests
   using it drifted from production behaviour and missed bugs (#1232), and hypercore 11
   storage takes a folder, not a storage function. A few older tests still use it. Migrations run from
-  `new URL('../drizzle/project', import.meta.url).pathname` (and `client` where relevant).
+  `fileURLToPath(new URL('../drizzle/project', import.meta.url))` (and `client` where relevant).
 - `test/helpers/` has shared builders: `create-core.js`, `core-manager.js`,
-  `blob-store.js`, `local-peers.js`, `events.js`, `default-config.js`. Use them rather than
+  `blob-store.js`, `local-peers.js`, `events.js`, `default-config.js`, `temp-dir.js`. Use them rather than
   re-wiring cores/DBs by hand.
 - Unit tests mirror source layout (e.g. `test/data-type.js` for `src/datatype/`);
   multi-device/cross-version scenarios go in `test-e2e/`.

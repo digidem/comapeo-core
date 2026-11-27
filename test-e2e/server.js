@@ -761,6 +761,11 @@ async function createLocalTestServer(t) {
   })
   t.after(async () => {
     await server.close()
+    // The plugin doesn't close its manager when the server closes
+    const { comapeo } = /** @type {{ comapeo: { close(): Promise<void> } }} */ (
+      /** @type {unknown} */ (server)
+    )
+    await comapeo.close()
     await Promise.all([dbFolder, coreStorage].map(removeTempDir))
   })
   const serverBaseUrl = await server.listen()

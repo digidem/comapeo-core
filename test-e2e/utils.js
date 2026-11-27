@@ -21,6 +21,7 @@ import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import fs from 'node:fs'
 import { kSyncState } from '../src/sync/sync-api.js'
+import { removeTempDir } from '../test/helpers/temp-dir.js'
 import pTimeout from 'p-timeout'
 import { pipeline } from 'node:stream/promises'
 import { Transform } from 'node:stream'
@@ -350,7 +351,7 @@ export async function createOldManager(version, t, seed, overrides = {}) {
 
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
-  t.after(() => Promise.all([dbFolder, coreStorage].map(removeTempDir)))
+  t.after(() => Promise.all([dbFolder, coreStorage].map(removeOldManagerDir)))
 
   return new MapeoManager({
     rootKey: getRootKey(seed),
@@ -424,16 +425,18 @@ export function makeManagerStorage() {
   }
 }
 
+export { removeTempDir }
+
 /**
- * Old @comapeo/core versions have no close(), so on Windows their SQLite
- * files can stay open and undeletable. Throwing here would skip the test's
- * later after hooks and leave the process running.
+ * For folders an old @comapeo/core manager has used. Those versions have no
+ * close(), so on Windows their SQLite files stay open and can't be deleted;
+ * throwing would skip the test's later after hooks and leave it running.
  *
  * @param {string} dir
  */
-export async function removeTempDir(dir) {
+export async function removeOldManagerDir(dir) {
   try {
-    await fsPromises.rm(dir, { recursive: true, force: true, maxRetries: 5 })
+    await fsPromises.rm(dir, { recursive: true, force: true })
   } catch (err) {
     if (process.platform !== 'win32') throw err
   }

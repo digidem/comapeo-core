@@ -9,7 +9,7 @@ import {
   createManager,
   createOldManagerOnVersion2_0_1,
   invite,
-  removeTempDir,
+  removeOldManagerDir,
 } from './utils.js'
 
 const projectMigrationsFolder = fileURLToPath(
@@ -49,9 +49,6 @@ test('migrations pick up values that were not previously understood', async (t) 
 
   const manager2DbFolder = temporaryDirectory()
   const manager2CoreStorage = temporaryDirectory()
-  t.after(() => removeTempDir(manager2DbFolder))
-  t.after(() => removeTempDir(manager2CoreStorage))
-
   const manager2BeforeMigration = await createOldManagerOnVersion2_0_1('b', t, {
     dbFolder: manager2DbFolder,
     coreStorage: manager2CoreStorage,
@@ -91,6 +88,12 @@ test('migrations pick up values that were not previously understood', async (t) 
     dbFolder: manager2DbFolder,
     coreStorage: manager2CoreStorage,
   })
+  // After createManager's hook, so this manager is closed first
+  t.after(() =>
+    Promise.all(
+      [manager2DbFolder, manager2CoreStorage].map(removeOldManagerDir)
+    )
+  )
 
   {
     const manager2Project = await manager2AfterMigration.getProject(projectId)
@@ -112,7 +115,6 @@ test('migration of localDeviceInfo table', async (t) => {
   const coreStorage = temporaryDirectory()
 
   const rootKey = KeyManager.generateRootKey()
-  t.after(() => removeTempDir(dbFolder))
 
   const managerPreMigration = await createOldManagerOnVersion2_0_1('seed', t, {
     rootKey,
@@ -144,6 +146,8 @@ test('migration of localDeviceInfo table', async (t) => {
     coreStorage,
     fastify: Fastify(),
   })
+  // After createManager's hook, so this manager is closed first
+  t.after(() => Promise.all([dbFolder, coreStorage].map(removeOldManagerDir)))
 
   assert.deepEqual(
     await manager.getDeviceInfo(),

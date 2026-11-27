@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
-import fsPromises from 'node:fs/promises'
+import { removeTempDir } from './temp-dir.js'
 
 import Sqlite from 'better-sqlite3'
 import { KeyManager } from '@comapeo/crypto'
@@ -55,9 +55,7 @@ export function createCoreManager(
     if (cleanup) {
       await manager.close()
     }
-    await fsPromises.rm(storage, {
-      recursive: true,
-    })
+    await removeTempDir(storage)
   })
 
   return manager

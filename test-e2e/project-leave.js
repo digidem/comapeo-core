@@ -20,6 +20,7 @@ import {
   invite,
   waitForPeers,
   waitForSync,
+  removeOldManagerDir,
   removeTempDir,
 } from './utils.js'
 
@@ -309,7 +310,6 @@ test('all data and config getters throw ProjectLeftError after leaving', async (
 
 test('leaving a project deletes data from disk', async (t) => {
   const memberCoreStorage = temporaryDirectory()
-  t.after(() => removeTempDir(memberCoreStorage))
 
   const managers = await Promise.all([
     (async () => {
@@ -326,6 +326,8 @@ test('leaving a project deletes data from disk', async (t) => {
     })(),
   ])
   const [creator, member] = managers
+  // After createManager's hooks, so the member is closed first
+  t.after(() => removeTempDir(memberCoreStorage))
 
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
@@ -455,8 +457,6 @@ test('partly-left projects are cleaned up on startup', async (t) => {
 test('leaving a project before PR#1125 persists after PR#1125', async (t) => {
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
-  t.after(() => removeTempDir(dbFolder))
-  t.after(() => removeTempDir(coreStorage))
 
   const manager4_1_4 = await createOldManager('4.1.4', t, 'a', {
     dbFolder,
@@ -469,6 +469,8 @@ test('leaving a project before PR#1125 persists after PR#1125', async (t) => {
   await project.close()
 
   const managerNew = await createManager('a', t, { dbFolder, coreStorage })
+  // After createManager's hook, so managerNew is closed first
+  t.after(() => Promise.all([dbFolder, coreStorage].map(removeOldManagerDir)))
 
   const projectsList = await managerNew.listProjects()
   assert.equal(projectsList.length, 0, 'no projects listed')

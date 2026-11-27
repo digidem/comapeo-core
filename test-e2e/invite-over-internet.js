@@ -160,6 +160,11 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
     dbFolder,
     swarm: { dht: testnet.createNode() },
   })
+  // Runs before createManager's hooks, so close the current invitor here
+  t.after(async () => {
+    await invitor.close()
+    await Promise.all([dbFolder, coreStorage].map(removeTempDir))
+  })
   const invitee = createManager('invitee', t, {
     swarm: { dht: testnet.nodes[0] },
   })
@@ -184,8 +189,6 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
     dbFolder,
     swarm: { dht: testnet.nodes[0] },
   })
-  // Registered after createManager's own hook, so it runs once invitor is closed
-  t.after(() => Promise.all([dbFolder, coreStorage].map(removeTempDir)))
 
   project = await invitor.getProject(projectId)
 
