@@ -28,7 +28,7 @@ test('start/stop lifecycle', async (t) => {
   const fastify = Fastify()
   const fastifyController = new FastifyController({ fastify })
 
-  const { dbFolder, coreStorage } = makeManagerStorage(t)
+  const { dbFolder, coreStorage, removeStorage } = makeManagerStorage()
 
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
@@ -37,6 +37,10 @@ test('start/stop lifecycle', async (t) => {
     dbFolder,
     coreStorage,
     fastify,
+  })
+  t.after(async () => {
+    await manager.close()
+    await removeStorage()
   })
 
   // Manager should await for the server to start internally
@@ -97,7 +101,7 @@ test('retrieving blobs using url', async (t) => {
   const fastify = Fastify()
   const fastifyController = new FastifyController({ fastify })
 
-  const { dbFolder, coreStorage } = makeManagerStorage(t)
+  const { dbFolder, coreStorage, removeStorage } = makeManagerStorage()
 
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
@@ -106,6 +110,10 @@ test('retrieving blobs using url', async (t) => {
     dbFolder,
     coreStorage,
     fastify,
+  })
+  t.after(async () => {
+    await manager.close()
+    await removeStorage()
   })
 
   const project = await manager.getProject(await manager.createProject())
@@ -195,7 +203,7 @@ test('retrieving icons using url', async (t) => {
   const fastify = Fastify()
   const fastifyController = new FastifyController({ fastify })
 
-  const { dbFolder, coreStorage } = makeManagerStorage(t)
+  const { dbFolder, coreStorage, removeStorage } = makeManagerStorage()
 
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
@@ -204,6 +212,10 @@ test('retrieving icons using url', async (t) => {
     dbFolder,
     coreStorage,
     fastify,
+  })
+  t.after(async () => {
+    await manager.close()
+    await removeStorage()
   })
 
   const project = await manager.getProject(await manager.createProject())
@@ -298,7 +310,7 @@ test('retrieving audio file', async (t) => {
   const fastify = Fastify()
   const fastifyController = new FastifyController({ fastify })
 
-  const { dbFolder, coreStorage } = makeManagerStorage(t)
+  const { dbFolder, coreStorage, removeStorage } = makeManagerStorage()
 
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
@@ -307,6 +319,10 @@ test('retrieving audio file', async (t) => {
     dbFolder,
     coreStorage,
     fastify,
+  })
+  t.after(async () => {
+    await manager.close()
+    await removeStorage()
   })
 
   const project = await manager.getProject(await manager.createProject())
@@ -352,7 +368,7 @@ test('retrieving style.json using stable url', async (t) => {
 
   const fastifyController = new FastifyController({ fastify })
 
-  const { dbFolder, coreStorage } = makeManagerStorage(t)
+  const { dbFolder, coreStorage, removeStorage } = makeManagerStorage()
 
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
@@ -361,6 +377,10 @@ test('retrieving style.json using stable url', async (t) => {
     dbFolder,
     coreStorage,
     fastify,
+  })
+  t.after(async () => {
+    await manager.close()
+    await removeStorage()
   })
 
   const exceptionPromise1 = assert.rejects(async () => {

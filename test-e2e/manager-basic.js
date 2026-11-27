@@ -364,7 +364,8 @@ test('Consistent storage folders', async (t) => {
   const manager = createManager('test', t, {
     rootKey: randomBytesSeed('root_key').subarray(0, 16),
     coreStorage: (name) => {
-      storageNames.push(name)
+      // Storage names are built with path.join, so use one separator everywhere
+      storageNames.push(name.replaceAll('\\', '/'))
       return new RAM()
     },
   })

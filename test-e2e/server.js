@@ -21,6 +21,7 @@ import {
   createManager,
   createManagers,
   invite,
+  removeTempDir,
   waitForPeers,
   waitForSync,
 } from './utils.js'
@@ -748,18 +749,6 @@ async function createLocalTestServer(t) {
 
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
-  const directories = [dbFolder, coreStorage]
-  async function closeDirs() {
-    await Promise.all(
-      directories.map((dir) =>
-        fsPromises.rm(dir, {
-          recursive: true,
-        })
-      )
-    )
-  }
-  t.after(closeDirs)
-
   const server = createFastify()
   server.register(comapeoServer, {
     rootKey: randomBytes(16),
@@ -770,8 +759,11 @@ async function createLocalTestServer(t) {
     serverName: 'test server',
     serverBearerToken: 'ignored',
   })
+  t.after(async () => {
+    await server.close()
+    await Promise.all([dbFolder, coreStorage].map(removeTempDir))
+  })
   const serverBaseUrl = await server.listen()
-  t.after(() => server.close())
   return { type: 'local', server, serverBaseUrl }
 }
 

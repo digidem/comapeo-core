@@ -2,7 +2,6 @@ import { fileURLToPath } from 'node:url'
 import { KeyManager } from '@comapeo/crypto'
 import Fastify from 'fastify'
 import assert from 'node:assert/strict'
-import fsPromises from 'node:fs/promises'
 import test from 'node:test'
 import { temporaryDirectory } from 'tempy'
 import {
@@ -10,6 +9,7 @@ import {
   createManager,
   createOldManagerOnVersion2_0_1,
   invite,
+  removeTempDir,
 } from './utils.js'
 
 const projectMigrationsFolder = fileURLToPath(
@@ -49,8 +49,8 @@ test('migrations pick up values that were not previously understood', async (t) 
 
   const manager2DbFolder = temporaryDirectory()
   const manager2CoreStorage = temporaryDirectory()
-  t.after(() => fsPromises.rm(manager2DbFolder, { recursive: true }))
-  t.after(() => fsPromises.rm(manager2CoreStorage, { recursive: true }))
+  t.after(() => removeTempDir(manager2DbFolder))
+  t.after(() => removeTempDir(manager2CoreStorage))
 
   const manager2BeforeMigration = await createOldManagerOnVersion2_0_1('b', t, {
     dbFolder: manager2DbFolder,
@@ -112,7 +112,7 @@ test('migration of localDeviceInfo table', async (t) => {
   const coreStorage = temporaryDirectory()
 
   const rootKey = KeyManager.generateRootKey()
-  t.after(() => fsPromises.rm(dbFolder, { recursive: true }))
+  t.after(() => removeTempDir(dbFolder))
 
   const managerPreMigration = await createOldManagerOnVersion2_0_1('seed', t, {
     rootKey,

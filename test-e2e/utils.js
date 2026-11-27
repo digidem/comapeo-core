@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import * as path from 'node:path'
 import { fork } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import * as v8 from 'node:v8'
 import { pEvent } from 'p-event'
 import { createMapeoClient } from '@comapeo/ipc'
@@ -270,13 +270,7 @@ export function createManager(seed, t, overrides = {}) {
   const coreStorage = temporaryDirectory()
   const directories = [dbFolder, coreStorage]
   async function closeDirs() {
-    await Promise.all(
-      directories.map((dir) =>
-        fsPromises.rm(dir, {
-          recursive: true,
-        })
-      )
-    )
+    await Promise.all(directories.map(removeTempDir))
   }
 
   const fastify = Fastify()
@@ -356,18 +350,7 @@ export async function createOldManager(version, t, seed, overrides = {}) {
 
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
-  t.after(async () => {
-    await Promise.all(
-      [dbFolder, coreStorage].map((dir) =>
-        fsPromises.rm(dir, { recursive: true }).catch((err) => {
-          // 2.0.1 and 4.1.4 have no close(), so Windows refuses to delete their open
-          // SQLite files, and a throwing after hook skips the test's later cleanup.
-          if (process.platform === 'win32') return
-          throw err
-        })
-      )
-    )
-  })
+  t.after(() => Promise.all([dbFolder, coreStorage].map(removeTempDir)))
 
   return new MapeoManager({
     rootKey: getRootKey(seed),
@@ -397,7 +380,7 @@ export async function createIpcManager(seed, t, overrides = {}) {
     new URL('./worker-process.js', import.meta.url)
   )
 
-  const { dbFolder, coreStorage } = makeManagerStorage(t)
+  const { dbFolder, coreStorage, removeStorage } = makeManagerStorage()
 
   const worker = new Worker(workerProcessPath, {
     workerData: {
@@ -412,7 +395,10 @@ export async function createIpcManager(seed, t, overrides = {}) {
     transferList: [childPort],
   })
 
-  t.after(() => worker.terminate())
+  t.after(async () => {
+    await worker.terminate()
+    await removeStorage()
+  })
 
   // As an optimization, we can prevent the worker from keeping the test
   // process alive. This isn't necessary for correctness (the call to
@@ -424,23 +410,33 @@ export async function createIpcManager(seed, t, overrides = {}) {
 }
 
 /**
- * @param {import('node:test').TestContext} t
+ * Callers must close whatever uses the storage before calling
+ * `removeStorage()`, because Windows can't delete open files.
  */
-export function makeManagerStorage(t) {
+export function makeManagerStorage() {
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
-  const directories = [dbFolder, coreStorage]
-  async function closeDirs() {
-    await Promise.all(
-      directories.map((dir) =>
-        fsPromises.rm(dir, {
-          recursive: true,
-        })
-      )
-    )
+  return {
+    dbFolder,
+    coreStorage,
+    removeStorage: () =>
+      Promise.all([dbFolder, coreStorage].map(removeTempDir)),
   }
-  t.after(closeDirs)
-  return { dbFolder, coreStorage }
+}
+
+/**
+ * Old @comapeo/core versions have no close(), so on Windows their SQLite
+ * files can stay open and undeletable. Throwing here would skip the test's
+ * later after hooks and leave the process running.
+ *
+ * @param {string} dir
+ */
+export async function removeTempDir(dir) {
+  try {
+    await fsPromises.rm(dir, { recursive: true, force: true, maxRetries: 5 })
+  } catch (err) {
+    if (process.platform !== 'win32') throw err
+  }
 }
 
 /**
@@ -495,9 +491,7 @@ export class ManagerCustodian {
   constructor(t) {
     this.#t = t
     for (const folder of [this.#dbFolder, this.#coreStorage]) {
-      t.after(() =>
-        fsPromises.rm(folder, { recursive: true, force: true, maxRetries: 2 })
-      )
+      t.after(() => removeTempDir(folder))
     }
   }
 
@@ -550,8 +544,8 @@ export class ManagerCustodian {
 
     const source = `
     import * as v8 from 'node:v8'
-    import Fastify from ${s(fastifyPath)}
-    import { MapeoManager } from ${s(mapeoManagerJsPath)}
+    import Fastify from ${s(pathToFileURL(fastifyPath).href)}
+    import { MapeoManager } from ${s(pathToFileURL(mapeoManagerJsPath).href)}
 
     const manager = new MapeoManager({
       rootKey: Buffer.from(${s(rootKeyHex)}, 'hex'),

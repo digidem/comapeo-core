@@ -1,8 +1,7 @@
 import test from 'node:test'
-import fsPromises from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
-import { createManager, createManagers } from './utils.js'
+import { createManager, createManagers, removeTempDir } from './utils.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import createTestnet from 'hyperdht/testnet.js'
 import { KeyManager } from '@comapeo/crypto'
@@ -156,18 +155,6 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
 
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
-  const directories = [dbFolder, coreStorage]
-  async function closeDirs() {
-    await Promise.all(
-      directories.map((dir) =>
-        fsPromises.rm(dir, {
-          recursive: true,
-        })
-      )
-    )
-  }
-
-  t.after(closeDirs)
   let invitor = createManager('invitor', t, {
     coreStorage,
     dbFolder,
@@ -197,6 +184,8 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
     dbFolder,
     swarm: { dht: testnet.nodes[0] },
   })
+  // Registered after createManager's own hook, so it runs once invitor is closed
+  t.after(() => Promise.all([dbFolder, coreStorage].map(removeTempDir)))
 
   project = await invitor.getProject(projectId)
 
