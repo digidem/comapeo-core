@@ -354,7 +354,20 @@ export async function createOldManager(version, t, seed, overrides = {}) {
 
   const { MapeoManager } = await import('@comapeo/core' + version)
 
-  const { dbFolder, coreStorage } = makeManagerStorage(t)
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+  t.after(async () => {
+    await Promise.all(
+      [dbFolder, coreStorage].map((dir) =>
+        fsPromises.rm(dir, { recursive: true }).catch((err) => {
+          // 2.0.1 and 4.1.4 have no close(), so Windows refuses to delete their open
+          // SQLite files, and a throwing after hook skips the test's later cleanup.
+          if (process.platform === 'win32') return
+          throw err
+        })
+      )
+    )
+  })
 
   return new MapeoManager({
     rootKey: getRootKey(seed),
