@@ -9,6 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import fsPromises from 'node:fs/promises'
 import pDefer from 'p-defer'
 import { pEvent } from 'p-event'
+import pTimeout from 'p-timeout'
 import { map } from 'iterpal'
 import {
   BLOCKED_ROLE_ID,
@@ -476,6 +477,42 @@ test('add server, remove server, check that it knows it got blocked', async (t) 
   )
 })
 
+test('removing a server over a slow connection still tells it that it is blocked', async (t) => {
+  // Slow uploads let the client sync the server's auth cores, and re-read its
+  // role, before its own auth cores reach the server
+  const manager = createManager('seed', t, {
+    makeWebsocket: (url) => delaySends(new WebSocket(url), 200),
+  })
+  await manager.setDeviceInfo({ name: 'manager', deviceType: 'mobile' })
+
+  const { server, serverBaseUrl } = await createLocalTestServer(t)
+
+  const projectId = await manager.createProject({ name: 'foo' })
+  const project = await manager.getProject(projectId)
+  await project.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+  const serverPeer = await findServerPeer(project)
+  assert(serverPeer, 'test setup: server peer exists')
+
+  await pTimeout(
+    project.$member.removeServerPeer(serverPeer.deviceId, {
+      dangerouslyAllowInsecureConnections: true,
+    }),
+    { milliseconds: 10_000, message: 'removeServerPeer timed out' }
+  )
+
+  // @ts-expect-error - does not exist on type
+  const serverManager = /** @type {MapeoManager} */ server.comapeo
+  const serverProject = await serverManager.getProject(projectId)
+  const serverMemberState = await findServerPeer(serverProject)
+  assert.equal(
+    serverMemberState?.role.roleId,
+    BLOCKED_ROLE_ID,
+    'server knows it is blocked'
+  )
+})
+
 test('connecting and then immediately disconnecting (and then immediately connecting again)', async (t) => {
   const manager = createManager('seed', t)
   await manager.setDeviceInfo({ name: 'manager', deviceType: 'mobile' })
@@ -762,6 +799,21 @@ async function createLocalTestServer(t) {
  */
 function log(t, message) {
   process.stderr.write(`${new Date().toISOString()} [${t.name}] ${message}\n`)
+}
+
+/**
+ * @param {WebSocket} ws
+ * @param {number} ms
+ * @returns {WebSocket}
+ */
+function delaySends(ws, ms) {
+  const send = /** @type {(...args: unknown[]) => void} */ (ws.send.bind(ws))
+  ws.send = (...args) => {
+    setTimeout(() => {
+      if (ws.readyState === ws.OPEN) send(...args)
+    }, ms)
+  }
+  return ws
 }
 
 /**
