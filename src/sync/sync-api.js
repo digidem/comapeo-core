@@ -360,10 +360,13 @@ export class SyncApi extends TypedEmitter {
            */
           const onWebsocketUnexpectedResponse = (_req, res) => {
             this.#l.log(
-              'Ignoring unexpected %d WebSocket response to %s',
+              'Unexpected %d WebSocket response to %s',
               res.statusCode,
               url
             )
+            // With this listener attached, ws leaves the socket CONNECTING
+            // forever, which would block reconnects to this URL.
+            websocket.terminate()
           }
           websocket.on('unexpected-response', onWebsocketUnexpectedResponse)
 
@@ -374,7 +377,11 @@ export class SyncApi extends TypedEmitter {
           websocket.once('close', () => {
             websocket.off('error', onWebsocketError)
             websocket.off('unexpected-response', onWebsocketUnexpectedResponse)
-            this.#serverWebsockets.delete(url)
+            // A socket closed by disconnectServers() can finish closing after
+            // a reconnect has replaced it
+            if (this.#serverWebsockets.get(url) === websocket) {
+              this.#serverWebsockets.delete(url)
+            }
           })
         }
       })
