@@ -360,60 +360,66 @@ test('encryption', async (t) => {
   }
 })
 
-test('poolSize limits number of open file descriptors', async (t) => {
-  const keyManager = new KeyManager(randomBytes(16))
-  const { publicKey: projectKey, secretKey: projectSecretKey } =
-    keyManager.getHypercoreKeypair('auth', randomBytes(32))
+test(
+  'poolSize limits number of open file descriptors',
+  {
+    skip: process.platform === 'win32' && 'needs lsof',
+  },
+  async (t) => {
+    const keyManager = new KeyManager(randomBytes(16))
+    const { publicKey: projectKey, secretKey: projectSecretKey } =
+      keyManager.getHypercoreKeypair('auth', randomBytes(32))
 
-  const CORE_COUNT = 500
-  await temporaryDirectoryTask(async (tempPath) => {
-    /** @param {string} name */
-    const storage = (name) => new RandomAccessFile(path.join(tempPath, name))
-    const cm = createCoreManager(t, {
-      keyManager,
-      storage,
-      projectKey,
-      projectSecretKey,
+    const CORE_COUNT = 500
+    await temporaryDirectoryTask(async (tempPath) => {
+      /** @param {string} name */
+      const storage = (name) => new RandomAccessFile(path.join(tempPath, name))
+      const cm = createCoreManager(t, {
+        keyManager,
+        storage,
+        projectKey,
+        projectSecretKey,
+      })
+      // -1 because CoreManager creates a writer core already
+      for (let i = 0; i < CORE_COUNT - 1; i++) {
+        const coreKey = randomBytes(32)
+        cm.addCore(coreKey, 'data')
+      }
+      const readyPromises = cm.getCores('data').map(({ core }) => core.ready())
+      assert.equal(readyPromises.length, CORE_COUNT)
+      await Promise.all(readyPromises)
+      const fdCount = await countOpenFileDescriptors(tempPath)
+      assert(fdCount > CORE_COUNT, 'without pool, at least one fd per core')
     })
-    // -1 because CoreManager creates a writer core already
-    for (let i = 0; i < CORE_COUNT - 1; i++) {
-      const coreKey = randomBytes(32)
-      cm.addCore(coreKey, 'data')
-    }
-    const readyPromises = cm.getCores('data').map(({ core }) => core.ready())
-    assert.equal(readyPromises.length, CORE_COUNT)
-    await Promise.all(readyPromises)
-    const fdCount = await countOpenFileDescriptors(tempPath)
-    assert(fdCount > CORE_COUNT, 'without pool, at least one fd per core')
-  })
 
-  await temporaryDirectoryTask(async (tempPath) => {
-    const POOL_SIZE = 100
-    const pool = new RandomAccessFilePool(POOL_SIZE)
-    /** @param {string} name */
-    const storage = (name) =>
-      new RandomAccessFile(path.join(tempPath, name), { pool })
-    const cm = createCoreManager(t, {
-      keyManager,
-      storage,
-      projectKey,
-      projectSecretKey,
+    await temporaryDirectoryTask(async (tempPath) => {
+      const POOL_SIZE = 100
+      const pool = new RandomAccessFilePool(POOL_SIZE)
+      /** @param {string} name */
+      const storage = (name) =>
+        new RandomAccessFile(path.join(tempPath, name), { pool })
+      const cm = createCoreManager(t, {
+        keyManager,
+        storage,
+        projectKey,
+        projectSecretKey,
+      })
+      // -1 because we CoreManager creates a writer core already
+      for (let i = 0; i < CORE_COUNT - 1; i++) {
+        const coreKey = randomBytes(32)
+        cm.addCore(coreKey, 'data')
+      }
+      const readyPromises = cm.getCores('data').map(({ core }) => core.ready())
+      await Promise.all(readyPromises)
+      const fdCount = await countOpenFileDescriptors(tempPath)
+      assert.equal(
+        fdCount,
+        POOL_SIZE,
+        'with pool, no more file descriptors than pool size'
+      )
     })
-    // -1 because we CoreManager creates a writer core already
-    for (let i = 0; i < CORE_COUNT - 1; i++) {
-      const coreKey = randomBytes(32)
-      cm.addCore(coreKey, 'data')
-    }
-    const readyPromises = cm.getCores('data').map(({ core }) => core.ready())
-    await Promise.all(readyPromises)
-    const fdCount = await countOpenFileDescriptors(tempPath)
-    assert.equal(
-      fdCount,
-      POOL_SIZE,
-      'with pool, no more file descriptors than pool size'
-    )
-  })
-})
+  }
+)
 
 test('sends "haves" bitfields over project creator core replication stream', async (t) => {
   const projectKey = randomBytes(32)
@@ -518,6 +524,8 @@ test('sends "haves" bitfields over project creator core replication stream', asy
 
 test('unreplicate', async (t) => {
   const WAIT_TIMEOUT = 200
+  // Reads that should succeed get longer: replication can take over 200ms to start on Windows
+  const READ_TIMEOUT = 5000
   const REPLICATION_DELAY = 20
   const scenarios = [
     {
@@ -585,11 +593,11 @@ test('unreplicate', async (t) => {
 
           // Check replication is actually working
           {
-            const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
+            const block1 = await b.get(0, { timeout: READ_TIMEOUT })
             assert.equal(block1?.toString(), 'a')
           }
           {
-            const block1 = await c.get(0, { timeout: WAIT_TIMEOUT })
+            const block1 = await c.get(0, { timeout: READ_TIMEOUT })
             assert.equal(block1?.toString(), 'a')
           }
 
@@ -622,7 +630,7 @@ test('unreplicate', async (t) => {
 
           // Check that we can read or not read the next block as expected
           if (scenario.expectedReadAfterReplicate) {
-            const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
+            const block2 = await b.get(1, { timeout: READ_TIMEOUT })
             assert.equal(block2?.toString(), 'b')
           } else {
             await assert.rejects(
@@ -633,7 +641,7 @@ test('unreplicate', async (t) => {
 
           // Replication with code 'c' should still work
           {
-            const block2 = await c.get(1, { timeout: WAIT_TIMEOUT })
+            const block2 = await c.get(1, { timeout: READ_TIMEOUT })
             assert.equal(block2?.toString(), 'b')
           }
         }
