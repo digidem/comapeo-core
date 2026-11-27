@@ -182,8 +182,11 @@ streams of that shape.
 - Built-in `node:test` + **`node:assert/strict`** (never plain `node:assert` — it's a lint
   error).
 - No mocking framework. Tests are self-contained and use fakes/injection.
-- **In-memory storage for speed & isolation:** SQLite via `new Database(':memory:')` and
-  cores via `random-access-memory` (`RAM`). Migrations run from
+- **Storage:** SQLite via `new Database(':memory:')`; cores on disk in a temporary
+  directory (`temporaryDirectory()` from `tempy`, as in `test/helpers/core-manager.js`).
+  Don't use `random-access-memory` (`RAM`) for new tests: it is synchronous, so tests
+  using it drifted from production behaviour and missed bugs (#1232), and hypercore 11
+  storage takes a folder, not a storage function. A few older tests still use it. Migrations run from
   `new URL('../drizzle/project', import.meta.url).pathname` (and `client` where relevant).
 - `test/helpers/` has shared builders: `create-core.js`, `core-manager.js`,
   `blob-store.js`, `local-peers.js`, `events.js`, `default-config.js`. Use them rather than
@@ -267,5 +270,5 @@ yes, update it.
   would never report.
 - **Multi-line union JSDoc typedefs don't parse.** `@typedef {\n A\n | B\n} Name` spanning multiple comment lines fails under the project's TypeScript (5.6) with cryptic `TS1005: '}' expected`. Write the whole union type expression on a **single line** (long lines are fine — Prettier doesn't wrap comments). For readable unions, define single-line variant typedefs (`/** @typedef {Base & { status: 'x' }} VariantX */`) and union their names on one line (see `JoinRequest` in `src/invite/invite-link-joiner.js`).
 - **`node:assert` is banned** by lint — always `node:assert/strict`.
-- **Tests must not touch the network or real disk.** Use `:memory:` SQLite, `RAM` cores,
-  and injected fakes (`makeWebsocket`, `coreStorage`, `swarm`).
+- **Tests must not touch the network.** Use `:memory:` SQLite, cores in a temporary
+  directory, and injected fakes (`makeWebsocket`, `coreStorage`, `swarm`).
