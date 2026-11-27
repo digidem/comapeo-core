@@ -49,7 +49,7 @@ import { MemberApi } from './member-api.js'
 import {
   SyncApi,
   kHandleDiscoveryKey,
-  kWaitForInitialSyncWithPeer,
+  kWaitForSyncWithPeer,
 } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
@@ -447,8 +447,8 @@ export class MapeoProject extends ReadyResource {
       getSwarmPublicKey: this.#getSwarmPublicKey,
       makeWebsocket,
       getReplicationStream,
-      waitForInitialSyncWithPeer: (deviceId, abortSignal) =>
-        this.$sync[kWaitForInitialSyncWithPeer](deviceId, abortSignal),
+      waitForSyncWithPeer: (deviceId, namespaces, abortSignal) =>
+        this.$sync[kWaitForSyncWithPeer](deviceId, namespaces, abortSignal),
       getProjectSettings: () => this.$getProjectSettings(),
       getDeviceInfo: async (deviceId) => {
         try {

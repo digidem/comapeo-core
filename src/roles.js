@@ -129,7 +129,9 @@ const BLOCKED_ROLE = {
   }),
   roleAssignment: [],
   sync: {
-    auth: 'blocked',
+    // So a blocked device learns it was blocked. It can still sync the IDs and
+    // roles of the project's devices, but the app doesn't show any of it.
+    auth: 'allowed',
     config: 'blocked',
     data: 'blocked',
     blobIndex: 'blocked',

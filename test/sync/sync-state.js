@@ -61,7 +61,7 @@ async function makeSyncState(t, { throttleMs = 100 } = {}) {
 
 test('SyncState emits a lossless, unthrottled "update" alongside the throttled "state" event', async (t) => {
   // Regression test for the flaky "initial sync" CI failures:
-  // `#waitForInitialSyncWithPeer` gates a one-shot completion on a state
+  // `#waitForSyncWithPeer` gates a one-shot completion on a state
   // transition. If that transition is transient (a peer reaches a synced state
   // and disconnects before the throttled `state` event fires), a consumer
   // relying only on the throttled `state` event would never observe it and

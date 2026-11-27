@@ -24,15 +24,13 @@ import { noop } from '../utils.js'
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
 /** @import * as http from 'node:http' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
-/** @import { HypercorePeer, ReplicationStream } from '../types.js' */
+/** @import { HypercorePeer, Namespace, ReplicationStream } from '../types.js' */
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
 export const kRequestFullStop = Symbol('background')
 export const kRescindFullStopRequest = Symbol('foreground')
-export const kWaitForInitialSyncWithPeer = Symbol(
-  'wait for initial sync with peer'
-)
+export const kWaitForSyncWithPeer = Symbol('wait for sync with peer')
 
 const DEFAULT_INITIAL_PEER_WAIT_MS = 2000
 
@@ -522,19 +520,24 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
+   * Wait until one peer has synced the given namespaces with us. Unlike
+   * {@link waitForSync}, this waits for a single peer.
+   *
    * @param {string} deviceId
+   * @param {ReadonlyArray<Namespace>} namespaces
    * @param {AbortSignal} abortSignal
    * @returns {Promise<void>}
    */
-  async [kWaitForInitialSyncWithPeer](deviceId, abortSignal) {
+  async [kWaitForSyncWithPeer](deviceId, namespaces, abortSignal) {
     abortSignal.throwIfAborted()
 
-    const state = this[kSyncState].getState()
-    if (isInitiallySyncedWithPeer(state, deviceId)) return
+    const isSynced = () =>
+      isSyncedWithPeer(this[kSyncState].getState(), deviceId, namespaces)
+    if (isSynced()) return
 
     return new Promise((resolve, reject) => {
       const check = () => {
-        if (isInitiallySyncedWithPeer(this[kSyncState].getState(), deviceId)) {
+        if (isSynced()) {
           cleanup()
           resolve()
         }
@@ -543,7 +546,7 @@ export class SyncApi extends TypedEmitter {
         cleanup()
         // 'state' events are throttled, so check the live state. Relies on the
         // mapeo/rpc channel closing before hypercore channels delete remote state
-        if (isInitiallySyncedWithPeer(this[kSyncState].getState(), deviceId)) {
+        if (isSynced()) {
           resolve()
         } else {
           reject(abortSignal.reason)
@@ -761,9 +764,10 @@ function hasRemoteStates(state) {
 /**
  * @param {import('./sync-state.js').State} state
  * @param {string} peerId
+ * @param {ReadonlyArray<Namespace>} namespaces
  */
-function isInitiallySyncedWithPeer(state, peerId) {
-  for (const ns of PRESYNC_NAMESPACES) {
+function isSyncedWithPeer(state, peerId, namespaces) {
+  for (const ns of namespaces) {
     const remoteDeviceSyncState = getOwn(state[ns].remoteStates, peerId)
     if (!remoteDeviceSyncState) return false
 

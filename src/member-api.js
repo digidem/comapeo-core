@@ -1,6 +1,7 @@
 import * as b4a from 'b4a'
 import * as crypto from 'node:crypto'
 import WebSocket from 'ws'
+import { PRESYNC_NAMESPACES } from './constants.js'
 import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import { DenyInviteOverInternet_DenyReason } from './generated/invite.js'
@@ -78,7 +79,7 @@ export const kHandleRedeemInviteOverInternet = Symbol(
 /** @import { DataStore } from './datastore/index.js' */
 /** @import { deviceInfoTable } from './schema/project.js' */
 /** @import { projectSettingsTable } from './schema/client.js' */
-/** @import { ReplicationStream, MapeoValueMap } from './types.js' */
+/** @import { Namespace, ReplicationStream, MapeoValueMap } from './types.js' */
 /** @import { InviteLinkRecord } from './invite/invite-links-api.js' */
 /** @import { InviteLinksApiForProject } from './invite/invite-links-api.js' */
 /** @import { InviteLinkRPC } from './invite/invite-link-rpc.js'*/
@@ -150,7 +151,7 @@ export class MemberApi extends TypedEmitter {
   #rpc
   #makeWebsocket
   #getReplicationStream
-  #waitForInitialSyncWithPeer
+  #waitForSyncWithPeer
   #getProjectSettings
   #getDeviceInfo
   #setDeviceInfo
@@ -178,7 +179,7 @@ export class MemberApi extends TypedEmitter {
    * @param {Pick<InviteLinkRPC, 'on'|'removeListener'|'redeemAck'|'disconnect'|'markReady'|'accept'|'deny'>} opts.inviteLinkRPC
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => ReplicationStream} opts.getReplicationStream
-   * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
+   * @param {(deviceId: string, namespaces: ReadonlyArray<Namespace>, abortSignal: AbortSignal) => Promise<void>} opts.waitForSyncWithPeer
    * @param {() => Promise<import('./mapeo-project.js').EditableProjectSettings>} opts.getProjectSettings
    * @param {(deviceId: string) => Promise<MemberDeviceInfo>} opts.getDeviceInfo
    * @param {(deviceId: string, deviceInfo: NewDeviceInfo) => Promise<void>} opts.setDeviceInfo
@@ -194,7 +195,7 @@ export class MemberApi extends TypedEmitter {
     inviteLinkRPC,
     makeWebsocket = (url) => new WebSocket(url),
     getReplicationStream,
-    waitForInitialSyncWithPeer,
+    waitForSyncWithPeer,
     getProjectSettings,
     getDeviceInfo,
     setDeviceInfo,
@@ -212,7 +213,7 @@ export class MemberApi extends TypedEmitter {
     this.#inviteLinkRPC = inviteLinkRPC
     this.#makeWebsocket = makeWebsocket
     this.#getReplicationStream = getReplicationStream
-    this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
+    this.#waitForSyncWithPeer = waitForSyncWithPeer
     this.#getProjectSettings = getProjectSettings
     this.#getDeviceInfo = getDeviceInfo
     this.#setDeviceInfo = setDeviceInfo
@@ -624,7 +625,11 @@ export class MemberApi extends TypedEmitter {
     const signals = [peerGone.signal]
     if (timeoutMs) signals.push(AbortSignal.timeout(timeoutMs))
     try {
-      await this.#waitForInitialSyncWithPeer(deviceId, abortSignalAny(signals))
+      await this.#waitForSyncWithPeer(
+        deviceId,
+        PRESYNC_NAMESPACES,
+        abortSignalAny(signals)
+      )
     } finally {
       this.#rpc.off('peer-remove', onPeerRemove)
     }
@@ -732,10 +737,11 @@ export class MemberApi extends TypedEmitter {
 
     await this.#roles.assignRole(serverDeviceId, MEMBER_ROLE_ID)
 
-    await this.#waitForInitialSyncWithServer({
+    await this.#syncWithServer({
       baseUrl,
       serverDeviceId,
       dangerouslyAllowInsecureConnections,
+      namespaces: PRESYNC_NAMESPACES,
     })
   }
 
@@ -793,10 +799,12 @@ export class MemberApi extends TypedEmitter {
     await this.#roles.assignRole(serverDeviceId, BLOCKED_ROLE_ID)
 
     // TODO: Catch fail and sync with server after
-    await this.#waitForInitialSyncWithServer({
+    await this.#syncWithServer({
       baseUrl,
       serverDeviceId,
       dangerouslyAllowInsecureConnections,
+      // A blocked peer only syncs auth, which holds the record that blocks it
+      namespaces: ['auth'],
     })
   }
 
@@ -844,12 +852,14 @@ export class MemberApi extends TypedEmitter {
    * @param {string} options.baseUrl
    * @param {string} options.serverDeviceId
    * @param {boolean} options.dangerouslyAllowInsecureConnections
+   * @param {ReadonlyArray<Namespace>} options.namespaces
    * @returns {Promise<void>}
    */
-  async #waitForInitialSyncWithServer({
+  async #syncWithServer({
     baseUrl,
     serverDeviceId,
     dangerouslyAllowInsecureConnections,
+    namespaces,
   }) {
     const projectPublicId = projectKeyToPublicId(this.#projectKey)
     const websocketUrl = new URL('sync/' + projectPublicId, baseUrl)
@@ -878,8 +888,9 @@ export class MemberApi extends TypedEmitter {
     const streamPromise = wsCoreReplicator(websocket, replicationStream)
 
     const syncAbortController = new AbortController()
-    const syncPromise = this.#waitForInitialSyncWithPeer(
+    const syncPromise = this.#waitForSyncWithPeer(
       serverDeviceId,
+      namespaces,
       syncAbortController.signal
     )
 
