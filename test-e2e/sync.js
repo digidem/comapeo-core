@@ -1068,13 +1068,15 @@ test('Correct sync state prior to data sync', async function (t) {
   const [invitor, ...invitees] = managers
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
-  const disconnect1 = connectPeers(managers)
+  let disconnect = connectPeers(managers)
+  t.after(() => disconnect())
 
   await invite({ invitor, invitees, projectId })
 
   const projects = await Promise.all(
     managers.map((m) => m.getProject(projectId))
   )
+  t.after(() => Promise.all(projects.map((p) => p.close())))
 
   for (const project of projects) {
     const { remoteDeviceSyncState } = project.$sync.getState()
@@ -1087,8 +1089,8 @@ test('Correct sync state prior to data sync', async function (t) {
 
   // Disconnect and reconnect, because currently pre-have messages about data
   // sync state are only shared on first connection
-  await disconnect1()
-  const disconnect2 = connectPeers(managers)
+  await disconnect()
+  disconnect = connectPeers(managers)
   await waitForPeers(managers)
 
   const expected = managers.map((manager, index) => {
@@ -1127,9 +1129,6 @@ test('Correct sync state prior to data sync', async function (t) {
 
   const syncState = projects.map((p) => p.$sync.getState())
   assert.deepEqual(syncState, expected)
-
-  await disconnect2()
-  await Promise.all(projects.map((p) => p.close()))
 })
 
 test('pre-haves are updated', async (t) => {
