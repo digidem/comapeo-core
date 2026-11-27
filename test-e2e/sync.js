@@ -508,13 +508,23 @@ test('sync only happens if both sides are enabled', async (t) => {
   invitorProject.$sync.start()
 
   await assert.rejects(
-    () => waitForSync(projects, 'full'),
+    () => waitForSync(projects, 'full', { timeout: 2_000 }),
     'wait for sync times out'
   )
 
   await assert.rejects(
     () => inviteeProject.observation.getByDocId(obs3.docId),
     'one side stopping sync should prevent data from syncing'
+  )
+
+  inviteeProject.$sync.start()
+
+  // Use the same timeout as above, to check that it would have synced given the timeout
+  await waitForSync(projects, 'full', { timeout: 2_000 })
+
+  assert(
+    await inviteeProject.observation.getByDocId(obs3.docId),
+    'syncs once both sides are enabled'
   )
 })
 
