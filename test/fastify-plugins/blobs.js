@@ -222,7 +222,7 @@ test('GET photo uses mime type from metadata if found', async (t) => {
   }
 })
 
-test('GET photo returns 404 when trying to get non-replicated blob', async (t) => {
+test('GET photo returns 404 when the blob is indexed but not downloaded', async (t) => {
   const projectKey = randomBytes(32)
 
   const {
