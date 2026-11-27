@@ -360,10 +360,13 @@ export class SyncApi extends TypedEmitter {
            */
           const onWebsocketUnexpectedResponse = (_req, res) => {
             this.#l.log(
-              'Ignoring unexpected %d WebSocket response to %s',
+              'Unexpected %d WebSocket response to %s',
               res.statusCode,
               url
             )
+            // With this listener attached, ws leaves the socket CONNECTING
+            // forever, which would block reconnects to this URL.
+            websocket.terminate()
           }
           websocket.on('unexpected-response', onWebsocketUnexpectedResponse)
 

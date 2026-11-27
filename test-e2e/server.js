@@ -4,6 +4,7 @@ import { execa } from 'execa'
 import createFastify from 'fastify'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
+import http from 'node:http'
 import test, { mock } from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
 import fsPromises from 'node:fs/promises'
@@ -343,6 +344,75 @@ test('adding a server peer and getting stream errors in connectServers', async (
 
   project.$sync.disconnectServers()
   project.$sync.connectServers()
+})
+
+test('reconnects after the server answers the websocket upgrade with a 502', async (t) => {
+  const badGateway = http.createServer()
+  badGateway.on('upgrade', (_req, socket) => {
+    socket.end(
+      'HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n'
+    )
+  })
+  badGateway.listen(0, '127.0.0.1')
+  await pEvent(badGateway, 'listening')
+  t.after(() => new Promise((resolve) => badGateway.close(resolve)))
+  const badGatewayAddress = badGateway.address()
+  assert(badGatewayAddress && typeof badGatewayAddress === 'object')
+  const badGatewayPort = badGatewayAddress.port
+
+  let failNext = false
+  /** @type {import('p-defer').DeferredPromise<WebSocket>} */
+  let nextWebsocket = pDefer()
+  /**
+   * @param {string} url
+   * @returns {WebSocket}
+   */
+  function makeWebsocket(url) {
+    let websocketUrl = url
+    if (failNext) {
+      failNext = false
+      const badUrl = new URL(url)
+      badUrl.protocol = 'ws:'
+      badUrl.host = `127.0.0.1:${badGatewayPort}`
+      websocketUrl = badUrl.href
+    }
+    const ws = new WebSocket(websocketUrl)
+    nextWebsocket.resolve(ws)
+    return ws
+  }
+
+  const manager = createManager('device0', t, {
+    makeWebsocket,
+  })
+  await manager.setDeviceInfo({ name: 'device0', deviceType: 'mobile' })
+
+  const projectId = await manager.createProject({ name: 'foo' })
+  const project = await manager.getProject(projectId)
+  t.after(() => project.$sync.disconnectServers())
+
+  const { serverBaseUrl } = await createTestServer(t)
+
+  await project.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+
+  failNext = true
+  nextWebsocket = pDefer()
+  project.$sync.connectServers()
+  const failingWebsocket = await nextWebsocket.promise
+  await pEvent(failingWebsocket, 'close', {
+    rejectionEvents: [],
+    timeout: 5000,
+  })
+
+  nextWebsocket = pDefer()
+  project.$sync.connectServers()
+  const retryWebsocket = await nextWebsocket.promise
+  assert.notEqual(retryWebsocket, failingWebsocket, 'opens a new socket')
+  await pEvent(retryWebsocket, 'open')
+
+  project.$sync.disconnectServers()
+  await pEvent(retryWebsocket, 'close')
 })
 
 test("can't add a server to two different projects", async (t) => {
