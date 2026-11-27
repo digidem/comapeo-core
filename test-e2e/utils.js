@@ -756,10 +756,7 @@ export async function getDiskUsage(filePath) {
   await Promise.all(
     dirents.map(async (dirent) => {
       if (!dirent.isFile()) return 0
-      const dirFilePath = path.join(
-        dirent.parentPath ?? dirent.path,
-        dirent.name
-      )
+      const dirFilePath = path.join(dirent.parentPath, dirent.name)
       const dirStats = await fsPromises.stat(dirFilePath)
       result += dirStats.size
     })
