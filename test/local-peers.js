@@ -13,6 +13,7 @@ import {
   InviteResponse_Decision,
 } from '../src/generated/rpc.js'
 import { pEvent } from 'p-event'
+import pTimeout from 'p-timeout'
 import { UnknownPeerError } from '../src/errors.js'
 
 test('sending and receiving invites', async () => {
@@ -381,16 +382,9 @@ test('Device info with ack results in acks sent', async () => {
   ])
 })
 
-test('Device info without ack results in no acks sent', async () => {
+test('Acks are sent before the sender has sent its device info', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
-
-  /** @type {import('../src/generated/rpc.js').DeviceInfo} */
-  const expectedDeviceInfo = {
-    name: 'mapeo',
-    deviceType: 'mobile',
-    features: [],
-  }
 
   const inviteId = testInviteId()
 
@@ -412,37 +406,34 @@ test('Device info without ack results in no acks sent', async () => {
 
   replicate(r1, r2)
 
-  const peers = await pEvent(r1, 'peers')
-
-  r1.sendDeviceInfo(peers[0].deviceId, expectedDeviceInfo)
-
-  const timeout = 100
-
-  const onInviteAck = pEvent(r1, 'invite-ack', { timeout })
-  const onInviteCancelAck = pEvent(r1, 'invite-cancel-ack', { timeout })
-  const onInviteResponseAck = pEvent(r1, 'invite-response-ack', { timeout })
-  const onProjectJoinDetailsAck = pEvent(r1, 'got-project-details-ack', {
-    timeout,
-  })
-
-  const { deviceId } = peers[0]
-
-  await Promise.all([
-    r1.sendInvite(deviceId, validInvite),
-    r1.sendInviteCancel(deviceId, {
-      inviteId,
-    }),
-    r1.sendInviteResponse(deviceId, {
-      inviteId,
-      decision: InviteResponse_Decision.DECISION_UNSPECIFIED,
-    }),
-    r1.sendProjectJoinDetails(deviceId, validProjectJoinDetails),
+  const [r1Peers, r2Peers] = await Promise.all([
+    pEvent(r1, 'peers'),
+    pEvent(r2, 'peers'),
   ])
 
-  assert.rejects(() => onInviteAck)
-  assert.rejects(() => onInviteCancelAck)
-  assert.rejects(() => onInviteResponseAck)
-  assert.rejects(() => onProjectJoinDetailsAck)
+  // r1 learns that r2 supports acks, but r2 never learns the same about r1
+  const r1GotDeviceInfo = pEvent(r1, 'peers')
+  await r2.sendDeviceInfo(r2Peers[0].deviceId, {
+    name: 'mapeo',
+    deviceType: 'mobile',
+    features: [DeviceInfo_RPCFeatures.ack],
+  })
+  await r1GotDeviceInfo
+
+  const { deviceId } = r1Peers[0]
+
+  await pTimeout(
+    Promise.all([
+      r1.sendInvite(deviceId, validInvite),
+      r1.sendInviteCancel(deviceId, { inviteId }),
+      r1.sendInviteResponse(deviceId, {
+        inviteId,
+        decision: InviteResponse_Decision.DECISION_UNSPECIFIED,
+      }),
+      r1.sendProjectJoinDetails(deviceId, validProjectJoinDetails),
+    ]),
+    { milliseconds: 1000 }
+  )
 })
 
 function testInviteId() {
