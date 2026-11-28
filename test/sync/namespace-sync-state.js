@@ -232,3 +232,24 @@ test('state includes cores added after it was read', async (t) => {
   assert.equal(syncState.getState().coreCount, before + 1)
   assert(updates > updatesBefore, 'onUpdate called for the new core')
 })
+
+test("state includes a core's blocks once its bitfield has loaded", async (t) => {
+  const cm = createCoreManager(t)
+  const { core } = cm.getWriterCore('config')
+  await core.ready()
+  await core.append(['a', 'b'])
+
+  const syncState = new NamespaceSyncState({
+    coreManager: cm,
+    // Only used by the blob namespace
+    blobStore: /** @type {any} */ ({}),
+    namespace: 'config',
+    onUpdate: () => {},
+    peerSyncControllers: new Map(),
+  })
+
+  assert.equal(syncState.getState().localState.have, 0, 'read before load')
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(syncState.getState().localState.have, 2)
+})
