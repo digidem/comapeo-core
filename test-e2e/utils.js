@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import * as path from 'node:path'
 import { fork } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import * as v8 from 'node:v8'
 import { pEvent } from 'p-event'
 import { createMapeoClient } from '@comapeo/ipc'
@@ -21,6 +21,7 @@ import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import fs from 'node:fs'
 import { kSyncState } from '../src/sync/sync-api.js'
+import { removeTempDir } from '../test/helpers/temp-dir.js'
 import pTimeout from 'p-timeout'
 import { pipeline } from 'node:stream/promises'
 import { Transform } from 'node:stream'
@@ -35,10 +36,12 @@ import createTestnet from 'hyperdht/testnet.js'
 /** @import { PublicPeerInfo } from '../src/mapeo-manager.js' */
 /** @import { TestNet } from 'hyperdht/testnet.js' */
 
-const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
-  .pathname
-const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
-  .pathname
+const projectMigrationsFolder = fileURLToPath(
+  new URL('../drizzle/project', import.meta.url)
+)
+const clientMigrationsFolder = fileURLToPath(
+  new URL('../drizzle/client', import.meta.url)
+)
 
 /**
  * @internal
@@ -268,13 +271,7 @@ export function createManager(seed, t, overrides = {}) {
   const coreStorage = temporaryDirectory()
   const directories = [dbFolder, coreStorage]
   async function closeDirs() {
-    await Promise.all(
-      directories.map((dir) =>
-        fsPromises.rm(dir, {
-          recursive: true,
-        })
-      )
-    )
+    await Promise.all(directories.map(removeTempDir))
   }
 
   const fastify = Fastify()
@@ -352,7 +349,9 @@ export async function createOldManager(version, t, seed, overrides = {}) {
 
   const { MapeoManager } = await import('@comapeo/core' + version)
 
-  const { dbFolder, coreStorage } = makeManagerStorage(t)
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+  t.after(() => Promise.all([dbFolder, coreStorage].map(removeOldManagerDir)))
 
   return new MapeoManager({
     rootKey: getRootKey(seed),
@@ -382,7 +381,7 @@ export async function createIpcManager(seed, t, overrides = {}) {
     new URL('./worker-process.js', import.meta.url)
   )
 
-  const { dbFolder, coreStorage } = makeManagerStorage(t)
+  const { dbFolder, coreStorage, removeStorage } = makeManagerStorage()
 
   const worker = new Worker(workerProcessPath, {
     workerData: {
@@ -397,7 +396,10 @@ export async function createIpcManager(seed, t, overrides = {}) {
     transferList: [childPort],
   })
 
-  t.after(() => worker.terminate())
+  t.after(async () => {
+    await worker.terminate()
+    await removeStorage()
+  })
 
   // As an optimization, we can prevent the worker from keeping the test
   // process alive. This isn't necessary for correctness (the call to
@@ -409,23 +411,35 @@ export async function createIpcManager(seed, t, overrides = {}) {
 }
 
 /**
- * @param {import('node:test').TestContext} t
+ * Callers must close whatever uses the storage before calling
+ * `removeStorage()`, because Windows can't delete open files.
  */
-export function makeManagerStorage(t) {
+export function makeManagerStorage() {
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
-  const directories = [dbFolder, coreStorage]
-  async function closeDirs() {
-    await Promise.all(
-      directories.map((dir) =>
-        fsPromises.rm(dir, {
-          recursive: true,
-        })
-      )
-    )
+  return {
+    dbFolder,
+    coreStorage,
+    removeStorage: () =>
+      Promise.all([dbFolder, coreStorage].map(removeTempDir)),
   }
-  t.after(closeDirs)
-  return { dbFolder, coreStorage }
+}
+
+export { removeTempDir }
+
+/**
+ * For folders an old @comapeo/core manager has used. Those versions have no
+ * close(), so on Windows their SQLite files stay open and can't be deleted;
+ * throwing would skip the test's later after hooks and leave it running.
+ *
+ * @param {string} dir
+ */
+export async function removeOldManagerDir(dir) {
+  try {
+    await fsPromises.rm(dir, { recursive: true, force: true })
+  } catch (err) {
+    if (process.platform !== 'win32') throw err
+  }
 }
 
 /**
@@ -480,9 +494,7 @@ export class ManagerCustodian {
   constructor(t) {
     this.#t = t
     for (const folder of [this.#dbFolder, this.#coreStorage]) {
-      t.after(() =>
-        fsPromises.rm(folder, { recursive: true, force: true, maxRetries: 2 })
-      )
+      t.after(() => removeTempDir(folder))
     }
   }
 
@@ -535,8 +547,8 @@ export class ManagerCustodian {
 
     const source = `
     import * as v8 from 'node:v8'
-    import Fastify from ${s(fastifyPath)}
-    import { MapeoManager } from ${s(mapeoManagerJsPath)}
+    import Fastify from ${s(pathToFileURL(fastifyPath).href)}
+    import { MapeoManager } from ${s(pathToFileURL(mapeoManagerJsPath).href)}
 
     const manager = new MapeoManager({
       rootKey: Buffer.from(${s(rootKeyHex)}, 'hex'),

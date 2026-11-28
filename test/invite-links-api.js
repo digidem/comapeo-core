@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import Database from 'better-sqlite3'
@@ -57,7 +58,9 @@ function setup(
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
-    migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
+    migrationsFolder: fileURLToPath(
+      new URL('../drizzle/client', import.meta.url)
+    ),
   })
 
   // Seed pending invites before creating the API

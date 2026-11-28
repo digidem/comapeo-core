@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DataStore } from '../src/datastore/index.js'
@@ -58,7 +59,9 @@ test('private createWithDocId() method', async (t) => {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
-    migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+    migrationsFolder: fileURLToPath(
+      new URL('../drizzle/project', import.meta.url)
+    ),
   })
 
   const coreManager = createCoreManager(t)
@@ -97,7 +100,9 @@ test('private createWithDocId() method throws when doc exists', async (t) => {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
-    migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+    migrationsFolder: fileURLToPath(
+      new URL('../drizzle/project', import.meta.url)
+    ),
   })
 
   const coreManager = createCoreManager(t)
@@ -377,7 +382,9 @@ async function testenv(t, { getDeviceIdForVersionId, ...opts } = {}) {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
-    migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+    migrationsFolder: fileURLToPath(
+      new URL('../drizzle/project', import.meta.url)
+    ),
   })
 
   const coreManager = createCoreManager(t, { ...opts, db })

@@ -3,6 +3,7 @@ import { generate } from '@mapeo/mock-data'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { excludeKeys } from 'filter-obj'
+import pTimeout from 'p-timeout'
 import {
   connectPeers,
   createManager,
@@ -20,7 +21,7 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
 
   const disconnect = connectPeers([oldManager, newManager])
   t.after(disconnect)
-  await waitForPeers([oldManager, newManager])
+  await step('peers connect', waitForPeers([oldManager, newManager]))
 
   const [oldManagerPeers, newManagerPeers] = await Promise.all([
     oldManager.listLocalPeers(),
@@ -39,11 +40,14 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
 
   const projectId = await oldManager.createProject({ name: 'foo bar' })
 
-  await invite({
-    projectId,
-    invitor: oldManager,
-    invitees: [newManager],
-  })
+  await step(
+    'invite is accepted',
+    invite({
+      projectId,
+      invitor: oldManager,
+      invitees: [newManager],
+    })
+  )
 
   const [oldProject, newProject] = await Promise.all([
     oldManager.getProject(projectId),
@@ -96,8 +100,8 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
   ])
 
   await Promise.all([
-    oldProject.$sync.waitForSync('full'),
-    newProject.$sync.waitForSync('full'),
+    step('old project full sync', oldProject.$sync.waitForSync('full')),
+    step('new project full sync', newProject.$sync.waitForSync('full')),
   ])
 
   assert(
@@ -109,3 +113,16 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
     'new project gets observation from old project'
   )
 })
+
+/**
+ * @template T
+ * @param {string} name
+ * @param {PromiseLike<T>} promise
+ * @returns {Promise<T>}
+ */
+function step(name, promise) {
+  return pTimeout(Promise.resolve(promise), {
+    milliseconds: 30_000,
+    message: `timed out waiting for: ${name}`,
+  })
+}

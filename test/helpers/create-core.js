@@ -1,5 +1,5 @@
 import { temporaryDirectory } from 'tempy'
-import fsPromises from 'node:fs/promises'
+import { removeTempDir } from './temp-dir.js'
 import Hypercore from 'hypercore'
 
 /*** @param {import('node:test').TestContext} t
@@ -8,12 +8,11 @@ import Hypercore from 'hypercore'
 export async function createCore(t, key) {
   const storage = temporaryDirectory()
 
-  t.after(async () =>
-    fsPromises.rm(storage, {
-      recursive: true,
-    })
-  )
   const core = new Hypercore(storage, key)
+  t.after(async () => {
+    await core.close()
+    await removeTempDir(storage)
+  })
   await core.ready()
   return core
 }

@@ -21,6 +21,7 @@ import {
   createManager,
   createManagers,
   invite,
+  removeTempDir,
   waitForPeers,
   waitForSync,
 } from './utils.js'
@@ -739,25 +740,15 @@ let installCloudServer
  * @returns {Promise<LocalTestServer>}
  */
 async function createLocalTestServer(t) {
-  const projectMigrationsFolder = new URL('./drizzle/project', comapeoCoreUrl)
-    .pathname
-  const clientMigrationsFolder = new URL('./drizzle/client', comapeoCoreUrl)
-    .pathname
+  const projectMigrationsFolder = fileURLToPath(
+    new URL('./drizzle/project', comapeoCoreUrl)
+  )
+  const clientMigrationsFolder = fileURLToPath(
+    new URL('./drizzle/client', comapeoCoreUrl)
+  )
 
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
-  const directories = [dbFolder, coreStorage]
-  async function closeDirs() {
-    await Promise.all(
-      directories.map((dir) =>
-        fsPromises.rm(dir, {
-          recursive: true,
-        })
-      )
-    )
-  }
-  t.after(closeDirs)
-
   const server = createFastify()
   server.register(comapeoServer, {
     rootKey: randomBytes(16),
@@ -768,8 +759,16 @@ async function createLocalTestServer(t) {
     serverName: 'test server',
     serverBearerToken: 'ignored',
   })
+  t.after(async () => {
+    await server.close()
+    // The plugin doesn't close its manager when the server closes
+    const { comapeo } = /** @type {{ comapeo: { close(): Promise<void> } }} */ (
+      /** @type {unknown} */ (server)
+    )
+    await comapeo.close()
+    await Promise.all([dbFolder, coreStorage].map(removeTempDir))
+  })
   const serverBaseUrl = await server.listen()
-  t.after(() => server.close())
   return { type: 'local', server, serverBaseUrl }
 }
 

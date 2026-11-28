@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -16,10 +17,9 @@ import {
   DEFAULT_ONLINE_STYLE_URL,
 } from '../../src/mapeo-manager.js'
 
-const SAMPLE_SMP_FIXTURE_PATH = new URL(
-  '../fixtures/maps/maplibre-demotiles.smp',
-  import.meta.url
-).pathname
+const SAMPLE_SMP_FIXTURE_PATH = fileURLToPath(
+  new URL('../fixtures/maps/maplibre-demotiles.smp', import.meta.url)
+)
 
 const mockAgent = setupFetchMock()
 
@@ -291,7 +291,7 @@ test('custom map info endpoint returns not found error when custom map does not 
 test('custom map info endpoint returns server error when custom map is invalid', async (t) => {
   const server = setup(t)
 
-  const invalidFile = new URL(import.meta.url).pathname
+  const invalidFile = fileURLToPath(import.meta.url)
 
   server.register(MapServerPlugin, {
     customMapPath: invalidFile,

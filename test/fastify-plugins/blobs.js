@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -443,8 +444,9 @@ async function setup(t, { prefix, projectKey = randomBytes(32) } = {}) {
   return { data, server, projectPublicId, coreManager, blobStore }
 }
 
-const IMAGE_FIXTURES_PATH = new URL('../fixtures/images', import.meta.url)
-  .pathname
+const IMAGE_FIXTURES_PATH = fileURLToPath(
+  new URL('../fixtures/images', import.meta.url)
+)
 
 const IMAGE_FIXTURES = readdirSync(IMAGE_FIXTURES_PATH)
 

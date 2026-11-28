@@ -1,7 +1,7 @@
+import { fileURLToPath } from 'node:url'
 import { KeyManager } from '@comapeo/crypto'
 import Fastify from 'fastify'
 import assert from 'node:assert/strict'
-import fsPromises from 'node:fs/promises'
 import test from 'node:test'
 import { temporaryDirectory } from 'tempy'
 import {
@@ -9,12 +9,15 @@ import {
   createManager,
   createOldManagerOnVersion2_0_1,
   invite,
+  removeOldManagerDir,
 } from './utils.js'
 
-const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
-  .pathname
-const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
-  .pathname
+const projectMigrationsFolder = fileURLToPath(
+  new URL('../drizzle/project', import.meta.url)
+)
+const clientMigrationsFolder = fileURLToPath(
+  new URL('../drizzle/client', import.meta.url)
+)
 
 test('migrations pick up values that were not previously understood', async (t) => {
   // Create Manager 1, which has new data.
@@ -46,9 +49,6 @@ test('migrations pick up values that were not previously understood', async (t) 
 
   const manager2DbFolder = temporaryDirectory()
   const manager2CoreStorage = temporaryDirectory()
-  t.after(() => fsPromises.rm(manager2DbFolder, { recursive: true }))
-  t.after(() => fsPromises.rm(manager2CoreStorage, { recursive: true }))
-
   const manager2BeforeMigration = await createOldManagerOnVersion2_0_1('b', t, {
     dbFolder: manager2DbFolder,
     coreStorage: manager2CoreStorage,
@@ -88,6 +88,12 @@ test('migrations pick up values that were not previously understood', async (t) 
     dbFolder: manager2DbFolder,
     coreStorage: manager2CoreStorage,
   })
+  // After createManager's hook, so this manager is closed first
+  t.after(() =>
+    Promise.all(
+      [manager2DbFolder, manager2CoreStorage].map(removeOldManagerDir)
+    )
+  )
 
   {
     const manager2Project = await manager2AfterMigration.getProject(projectId)
@@ -109,7 +115,6 @@ test('migration of localDeviceInfo table', async (t) => {
   const coreStorage = temporaryDirectory()
 
   const rootKey = KeyManager.generateRootKey()
-  t.after(() => fsPromises.rm(dbFolder, { recursive: true }))
 
   const managerPreMigration = await createOldManagerOnVersion2_0_1('seed', t, {
     rootKey,
@@ -141,6 +146,8 @@ test('migration of localDeviceInfo table', async (t) => {
     coreStorage,
     fastify: Fastify(),
   })
+  // After createManager's hook, so this manager is closed first
+  t.after(() => Promise.all([dbFolder, coreStorage].map(removeOldManagerDir)))
 
   assert.deepEqual(
     await manager.getDeviceInfo(),

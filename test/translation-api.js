@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import TranslationApi, {
@@ -125,7 +126,9 @@ function setup(t) {
   const db = drizzle(sqlite)
 
   migrate(db, {
-    migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+    migrationsFolder: fileURLToPath(
+      new URL('../drizzle/project', import.meta.url)
+    ),
   })
 
   const cm = createCoreManager(t, { db })
