@@ -17,7 +17,9 @@ import { MockInviteLinkRPC } from './helpers/invite-link-rpc.js'
 import {
   InvalidInviteURLKeyParameterError,
   InvalidInviteURLRoleError,
+  InviteAbortedError,
   MissingInviteURLParameter,
+  RPCAckTimeoutError,
 } from '../src/errors.js'
 import { CrockfordBase32 } from 'crockford-base32'
 
@@ -113,6 +115,29 @@ test('parseInviteURL throws on invalid role value', () => {
     },
     'should throw InvalidInviteURLRoleError for unknown role value'
   )
+})
+
+test('Invite ack timeout aborts the invite and cancels it on the invitee', async () => {
+  const { rpc, member } = setup()
+  const inviteeId = randomBytes(32).toString('hex')
+
+  /** @type {Buffer | undefined} */
+  let sentInviteId
+  rpc.sendInvite = async (_deviceId, invite) => {
+    sentInviteId = invite.inviteId
+    throw new RPCAckTimeoutError({ type: 'InviteAck' })
+  }
+  /** @type {Array<{ deviceId: string, inviteId: Buffer }>} */
+  const cancels = []
+  rpc.sendInviteCancel = async (deviceId, { inviteId }) => {
+    cancels.push({ deviceId, inviteId })
+  }
+
+  await assert.rejects(member.invite(inviteeId, { roleId: MEMBER_ROLE_ID }), {
+    code: InviteAbortedError.code,
+  })
+  assert.ok(sentInviteId)
+  assert.deepEqual(cancels, [{ deviceId: inviteeId, inviteId: sentInviteId }])
 })
 
 test('List pending invites over internet', async () => {

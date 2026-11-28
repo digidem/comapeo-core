@@ -36,6 +36,7 @@ import {
   AlreadyInvitingError,
   InvalidResponseBodyError,
   RPCDisconnectBeforeAckError,
+  RPCAckTimeoutError,
   InvalidInternetInviteURLError,
   InviteAlreadyRedeemedError,
   InviteNotYetRedeemedError,
@@ -596,8 +597,11 @@ export class MemberApi extends TypedEmitter {
           throw new ExhaustivenessError({ value: inviteResponse.decision })
       }
     } catch (e) {
-      if (e instanceof RPCDisconnectBeforeAckError) {
-        this.#l.log('ERROR: Disconnect before ack', e)
+      if (
+        e instanceof RPCDisconnectBeforeAckError ||
+        e instanceof RPCAckTimeoutError
+      ) {
+        this.#l.log('ERROR: No ack for invite', e)
         throw new InviteAbortedError()
       }
       throw ensureKnownError(e)
@@ -655,20 +659,19 @@ export class MemberApi extends TypedEmitter {
 
     responsePromise.catch(noop)
 
-    signal.addEventListener(
-      'abort',
-      () => {
-        this.#rpc
-          .sendInviteCancel(deviceId, { inviteId: invite.inviteId })
-          .catch(noop)
-      },
-      { once: true }
-    )
+    const sendCancel = () => {
+      this.#rpc
+        .sendInviteCancel(deviceId, { inviteId: invite.inviteId })
+        .catch(noop)
+    }
+    signal.addEventListener('abort', sendCancel, { once: true })
 
     try {
       await this.#rpc.sendInvite(deviceId, invite)
       return await responsePromise
     } catch (e) {
+      // The invitee may have the invite even though its ack never arrived
+      if (e instanceof RPCAckTimeoutError) sendCancel()
       if (e instanceof Error && e.name === 'AbortError') {
         this.#l.log('ERROR: Timed out sending invite', e)
         throw new InviteAbortedError()

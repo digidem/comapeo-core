@@ -2,7 +2,7 @@ import { setup, assign, fromPromise, assertEvent, raise } from 'xstate'
 import { omit } from '../lib/omit.js'
 import { InviteResponse_Decision } from '../generated/rpc.js'
 import ensureError from 'ensure-error'
-import { TimeoutError } from '../errors.js'
+import { RPCAckTimeoutError, TimeoutError } from '../errors.js'
 
 const RECEIVE_PROJECT_DETAILS_TIMEOUT_MS = 45_000
 const ADD_PROJECT_TIMEOUT_MS = 300_000
@@ -94,7 +94,14 @@ export const inviteStateMachine = setup({
             src: 'sendInviteResponse',
             input: { decision: InviteResponse_Decision.ACCEPT },
             onDone: '#invite.joining',
-            onError: '#invite.error',
+            onError: [
+              {
+                // The invitor may have got it anyway; awaitingDetails times out
+                guard: ({ event }) => event.error instanceof RPCAckTimeoutError,
+                target: '#invite.joining',
+              },
+              { target: '#invite.error' },
+            ],
           },
           on: {
             // It's possible project details could be received before the send

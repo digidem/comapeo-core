@@ -16,7 +16,11 @@ import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { pEvent } from 'p-event'
 import pTimeout from 'p-timeout'
 import FakeTimers from '@sinonjs/fake-timers'
-import { AlreadyJoinedError, TimeoutError } from '../src/errors.js'
+import {
+  AlreadyJoinedError,
+  RPCAckTimeoutError,
+  TimeoutError,
+} from '../src/errors.js'
 /** @import { InviteResponse } from '../src/generated/rpc.js' */
 
 class MockLocalPeers extends LocalPeers {
@@ -1065,6 +1069,48 @@ test('failures to send acceptances cause accept to reject, no project to be adde
   const inviteFinal = inviteApi.getById(inviteExternal.inviteId)
   assert.equal(inviteFinal.state, 'error')
   assert.equal(inviteFinal.error.message, 'Failed to accept invite')
+})
+
+test('accept still joins if the accept response ack times out', async () => {
+  const {
+    rpc,
+    invitorPeerId,
+    invite,
+    inviteExternal,
+    projectKey,
+    projectPublicId,
+    encryptionKeys,
+  } = setup()
+
+  const inviteApi = new InviteApi({
+    rpc,
+    queries: {
+      getProjectByInviteId: () => undefined,
+      addProject: async ({ projectKey }) => projectKeyToPublicId(projectKey),
+    },
+  })
+
+  rpc.sendInviteResponse = async () => {
+    // Details arrive only after the ack wait has failed
+    setImmediate(() => {
+      rpc.emit('got-project-details', invitorPeerId, {
+        inviteId: invite.inviteId,
+        projectKey,
+        encryptionKeys,
+      })
+    })
+    throw new RPCAckTimeoutError({ type: 'InviteResponseAck' })
+  }
+
+  const inviteReceivedPromise = once(inviteApi, 'invite-received')
+  rpc.emit('invite', invitorPeerId, invite)
+  await inviteReceivedPromise
+
+  const acceptResult = await pTimeout(inviteApi.accept(inviteExternal), {
+    milliseconds: 1000,
+  })
+  assert.equal(acceptResult, projectPublicId)
+  assert.equal(inviteApi.getById(inviteExternal.inviteId).state, 'joined')
 })
 
 test('failures to send rejections are ignored, but invite ends in error state', async () => {

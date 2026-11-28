@@ -23,6 +23,7 @@ import { Logger } from './logger.js'
 import {
   PeerDisconnectedError,
   PeerFailedConnectionError,
+  RPCAckTimeoutError,
   RPCDisconnectBeforeAckError,
   RPCDisconnectBeforeSendingError,
   UnknownPeerError,
@@ -62,6 +63,8 @@ const PROTOCOL_NAME = 'mapeo/rpc'
 const SEND_TIMEOUT = 1000
 // Timeout in milliseconds to wait for peer deduplication
 const DEDUPE_TIMEOUT = 1000
+// Timeout in milliseconds to wait for an ack once a message has drained
+const ACK_TIMEOUT = 30_000
 
 // Protomux message types depend on the order that messages are added to a
 // channel (this needs to remain consistent). To avoid breaking changes, the
@@ -123,6 +126,7 @@ class Peer {
   #ackWaiters = new Map()
   #protomux
   #log
+  #ackTimeoutMs
 
   /**
    * @param {object} options
@@ -130,9 +134,11 @@ class Peer {
    * @param {ReturnType<typeof Protomux.prototype.createChannel>} options.channel
    * @param {PeerProtomux} options.protomux
    * @param {Logger} [options.logger]
+   * @param {number} options.ackTimeoutMs
    */
-  constructor({ peerId, channel, protomux, logger }) {
+  constructor({ peerId, channel, protomux, logger, ackTimeoutMs }) {
     this.#deviceId = peerId
+    this.#ackTimeoutMs = ackTimeoutMs
     this.#channel = channel
     this.#protomux = protomux
     this.#connected = pDefer()
@@ -324,7 +330,16 @@ class Peer {
     // Disconnect rejects both; surface the drain error and mark the ack handled
     acked?.catch(noop)
     await this.#waitForDrain(didWrite)
-    await acked
+    if (!waiter) return
+    const timer = setTimeout(() => {
+      this.#removeAckWaiter(ackType, waiter)
+      waiter.deferred.reject(new RPCAckTimeoutError({ type: ackType }))
+    }, this.#ackTimeoutMs)
+    try {
+      await acked
+    } finally {
+      clearTimeout(timer)
+    }
   }
 
   /**
@@ -524,6 +539,7 @@ export class LocalPeers extends TypedEmitter {
   #opening = new Set()
 
   #l
+  #ackTimeoutMs
   /** @type {Set<Protomux>} */
   #attached = new Set()
 
@@ -531,10 +547,12 @@ export class LocalPeers extends TypedEmitter {
    *
    * @param {object} [opts]
    * @param {Logger} [opts.logger]
+   * @param {number} [opts.ackTimeoutMs] How long to wait for a peer to acknowledge a message before rejecting
    */
-  constructor({ logger } = {}) {
+  constructor({ logger, ackTimeoutMs = ACK_TIMEOUT } = {}) {
     super()
     this.#l = Logger.create('localPeers', logger)
+    this.#ackTimeoutMs = ackTimeoutMs
   }
 
   get peers() {
@@ -756,6 +774,7 @@ export class LocalPeers extends TypedEmitter {
       protomux,
       channel,
       logger: this.#l,
+      ackTimeoutMs: this.#ackTimeoutMs,
     })
     existingDevicePeers.add(peer)
     this.#peers.set(peerId, existingDevicePeers)

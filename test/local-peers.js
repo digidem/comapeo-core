@@ -14,8 +14,9 @@ import {
 } from '../src/generated/rpc.js'
 import { pEvent } from 'p-event'
 import pTimeout from 'p-timeout'
-import { setImmediate } from 'node:timers/promises'
+import { setImmediate, setTimeout } from 'node:timers/promises'
 import {
+  RPCAckTimeoutError,
   RPCDisconnectBeforeSendingError,
   UnknownPeerError,
 } from '../src/errors.js'
@@ -493,11 +494,69 @@ test('Disconnect while waiting for drain and ack rejects send', async () => {
   )
 })
 
+test('Send rejects if the peer never acks', async (t) => {
+  const { r1, r2, destroy } = await connectR1ToAckingPeer({ ackTimeoutMs: 50 })
+  t.after(() => destroy())
+
+  const peer = r1.peers[0]
+  // The receiver fails to parse an invalid invite, so it never acks
+  const r2FailedToHandle = pEvent(r2, 'failed-to-handle-message')
+  const sendPromise = r1.sendInvite(peer.deviceId, {
+    ...testInvite(),
+    projectName: '',
+  })
+
+  await assert.rejects(
+    pTimeout(sendPromise, { milliseconds: 1000 }),
+    RPCAckTimeoutError
+  )
+  await r2FailedToHandle
+})
+
+test('Ack timeout starts after the message has drained', async (t) => {
+  const ackTimeoutMs = 50
+  const { r1, destroy } = await connectR1ToAckingPeer({ ackTimeoutMs })
+  t.after(() => destroy())
+
+  const peer = r1.peers[0]
+  assert(peer.status === 'connected')
+  const stream = peer.protomux.stream
+  const restoreWrite = reportBackpressure(stream)
+
+  let settled = false
+  const sendPromise = r1.sendInvite(peer.deviceId, {
+    ...testInvite(),
+    projectName: '',
+  })
+  sendPromise.then(
+    () => (settled = true),
+    () => (settled = true)
+  )
+
+  await setTimeout(ackTimeoutMs * 3)
+  assert.equal(settled, false, 'still waiting for drain')
+
+  restoreWrite()
+  const drainedAt = performance.now()
+  stream.emit('drain')
+
+  await assert.rejects(
+    pTimeout(sendPromise, { milliseconds: 1000 }),
+    RPCAckTimeoutError
+  )
+  // A few ms of slack because timers can fire slightly early
+  assert(
+    performance.now() - drainedAt >= ackTimeoutMs - 5,
+    'ack timeout is measured from drain'
+  )
+})
+
 /**
  * Connect two LocalPeers where only r1 learns that its peer supports acks
+ * @param {ConstructorParameters<typeof LocalPeers>[0]} [r1Opts]
  */
-async function connectR1ToAckingPeer() {
-  const r1 = new LocalPeers()
+async function connectR1ToAckingPeer(r1Opts) {
+  const r1 = new LocalPeers(r1Opts)
   const r2 = new LocalPeers()
   const destroy = replicate(r1, r2)
 

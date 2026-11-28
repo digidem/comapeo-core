@@ -15,6 +15,8 @@ import {
   ExistingJoinRequestError,
   JoinProjectCancelledError,
   ConnectionLostError,
+  InviteConnectionError,
+  RPCAckTimeoutError,
 } from '../src/errors.js'
 
 /** @import { RemoteAuthedNoiseStream } from '../src/discovery/remote-discovery.js' */
@@ -474,6 +476,35 @@ test('connection close: peer disconnects during initial sync', async () => {
 
   assert.ok(lastError)
   assert.equal(lastError.code, ConnectionLostError.code)
+
+  ctx.connection.end()
+})
+
+test('RPC ack timeout during join is reported as a connection error', async () => {
+  const ctx = makeTestContext()
+  const acceptGate = Promise.reject(
+    new RPCAckTimeoutError({ type: 'InviteResponseAck' })
+  )
+  acceptGate.catch(() => {})
+  const inviteApi = new MockInviteApi({ projectId: ctx.projectId, acceptGate })
+  const mockRpc = new MockInviteLinkRPC({ inviteApi })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => ctx.connection,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  const onFailed = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'failed',
+  })
+  joiner.createJoinRequest(ctx.url)
+
+  const failed = await onFailed
+  assert.equal(failed.status, 'failed')
+  assert.equal(failed.error, InviteConnectionError.code)
 
   ctx.connection.end()
 })
