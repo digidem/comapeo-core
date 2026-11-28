@@ -12,6 +12,7 @@ import {
   PeerDisconnectedError,
   RPCDisconnectBeforeSendingError,
   RPCDisconnectBeforeAckError,
+  RPCAckTimeoutError,
   UnknownPeerError,
   InitialSyncFailedError,
   ensureKnownError,
@@ -30,6 +31,7 @@ const NETWORK_ERROR_CODES = new Set([
   PeerDisconnectedError.code,
   RPCDisconnectBeforeSendingError.code,
   RPCDisconnectBeforeAckError.code,
+  RPCAckTimeoutError.code,
   UnknownPeerError.code,
   InitialSyncFailedError.code,
 ])

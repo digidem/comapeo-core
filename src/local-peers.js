@@ -64,7 +64,7 @@ const SEND_TIMEOUT = 1000
 // Timeout in milliseconds to wait for peer deduplication
 const DEDUPE_TIMEOUT = 1000
 // Timeout in milliseconds to wait for an ack once a message has drained
-const ACK_TIMEOUT = 10_000
+const ACK_TIMEOUT = 30_000
 
 // Protomux message types depend on the order that messages are added to a
 // channel (this needs to remain consistent). To avoid breaking changes, the

@@ -537,11 +537,17 @@ test('Ack timeout starts after the message has drained', async (t) => {
   assert.equal(settled, false, 'still waiting for drain')
 
   restoreWrite()
+  const drainedAt = performance.now()
   stream.emit('drain')
 
   await assert.rejects(
     pTimeout(sendPromise, { milliseconds: 1000 }),
     RPCAckTimeoutError
+  )
+  // A few ms of slack because timers can fire slightly early
+  assert(
+    performance.now() - drainedAt >= ackTimeoutMs - 5,
+    'ack timeout is measured from drain'
   )
 })
 
