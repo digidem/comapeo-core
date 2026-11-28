@@ -319,6 +319,8 @@ test('sends "haves" bitfields over project creator core replication stream', asy
    * @type {Map<string, Map<Namespace, Map<string, RemoteBitfield>>>}
    */
   const havesByPeer = new Map()
+  /** @type {Map<string, Set<number>>} */
+  const dataHaveStartsByCore = new Map()
 
   cm2.on(
     'peer-have',
@@ -338,22 +340,30 @@ test('sends "haves" bitfields over project creator core replication stream', asy
         remoteBitfield = new RemoteBitfield()
         havesByCore.set(coreDiscoveryId, remoteBitfield)
       }
+      if (namespace === 'data') {
+        const starts = dataHaveStartsByCore.get(coreDiscoveryId) || new Set()
+        starts.add(start)
+        dataHaveStartsByCore.set(coreDiscoveryId, starts)
+      }
       remoteBitfield.insert(start, bitfield)
     }
   )
 
   const cm1Core = cm1.getWriterCore('data').core
   await cm1Core.ready()
-  // Create 4 million entries in hypercore - will be at least two have bitfields
+  // Past one 2^21-bit bitfield segment and into a second 2^15-bit page, so the
+  // haves span two messages
   const batchSize = 4096
   const block = new Uint8Array([99])
   const data = Array(batchSize).fill(block)
-  for (let i = 0; i < 2 ** 22; i += batchSize) {
+  for (let i = 0; i < 2 ** 21 + 2 ** 15 + batchSize; i += batchSize) {
     await cm1Core.append(data)
   }
 
   await cm1Core.clear(500, 30000)
   await cm1Core.clear(700000, 800000)
+  await cm1Core.clear(2 ** 21 - 1000, 2 ** 21 + 1000)
+  await cm1Core.clear(2 ** 21 + 2 ** 15 - 10, 2 ** 21 + 2 ** 15 + 10)
 
   const n1 = new NoiseSecretStream(true)
   const n2 = new NoiseSecretStream(false)
@@ -371,6 +381,25 @@ test('sends "haves" bitfields over project creator core replication stream', asy
   const bitfield = havesByCore?.get(cm1Core.discoveryKey?.toString('hex') || '')
   assert(bitfield)
   assert(cm1Core.core)
+  const discoveryId = cm1Core.discoveryKey?.toString('hex') || ''
+  assert.deepEqual(
+    [...(dataHaveStartsByCore.get(discoveryId) || [])].sort((x, y) => x - y),
+    [0, 2 ** 21],
+    'haves sent for both bitfield segments'
+  )
+  /** @type {Array<[number, boolean]>} */
+  const expectedBlocks = [
+    [499, true],
+    [600, false],
+    [2 ** 21 - 1, false],
+    [2 ** 21 + 999, false],
+    [2 ** 21 + 5000, true],
+    [2 ** 21 + 2 ** 15, false],
+    [2 ** 21 + 2 ** 15 + 100, true],
+  ]
+  for (const [index, expected] of expectedBlocks) {
+    assert.equal(bitfield.get(index), expected, `remote has block ${index}`)
+  }
 
   assert(
     bitfieldEquals(bitfield, cm1Core.core.bitfield, cm1Core.length),

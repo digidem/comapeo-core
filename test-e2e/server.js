@@ -306,22 +306,25 @@ test('adding a server peer', async (t) => {
 })
 
 test('adding a server peer and getting stream errors in connectServers', async (t) => {
-  let shouldFail = false
+  let failNext = false
+  /** @type {import('p-defer').DeferredPromise<WebSocket>} */
+  let nextWebsocket = pDefer()
   /**
    * @param {string} url
    * @returns {WebSocket}
    */
   function makeWebsocket(url) {
-    if (shouldFail) {
-      const ws = new WebSocket(url)
+    const ws = new WebSocket(url)
+    if (failNext) {
+      failNext = false
       process.nextTick(() => {
         ws.emit('error', new Error('Unexpected error'))
+        // A real ws error always tears the socket down
+        ws.terminate()
       })
-      return ws
-    } else {
-      shouldFail = true
-      return new WebSocket(url)
     }
+    nextWebsocket.resolve(ws)
+    return ws
   }
 
   const manager = createManager('device0', t, {
@@ -341,8 +344,20 @@ test('adding a server peer and getting stream errors in connectServers', async (
   const serverPeer = await findServerPeer(project)
   assert(serverPeer, 'expected a server peer to be found by the client')
 
-  project.$sync.disconnectServers()
+  failNext = true
+  nextWebsocket = pDefer()
   project.$sync.connectServers()
+  const failingWebsocket = await nextWebsocket.promise
+  await pEvent(failingWebsocket, 'close', { rejectionEvents: [] })
+
+  nextWebsocket = pDefer()
+  project.$sync.connectServers()
+  const retryWebsocket = await nextWebsocket.promise
+  assert.notEqual(retryWebsocket, failingWebsocket, 'reconnects after an error')
+  await pEvent(retryWebsocket, 'open')
+
+  project.$sync.disconnectServers()
+  await pEvent(retryWebsocket, 'close')
 })
 
 test("can't add a server to two different projects", async (t) => {

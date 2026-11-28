@@ -196,6 +196,7 @@ export class MapeoManager extends TypedEmitter {
   #makeWebsocket
   #defaultIsArchiveDevice
   #untrustedTimeout
+  #initialSyncTimeoutMs
   /** @type {Map<string, ReturnType<typeof setTimeout>>} */
   #pendingInviteTimers = new Map()
   /** @type {boolean} */
@@ -216,6 +217,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
    * @param {boolean} [opts.defaultIsArchiveDevice] Whether the node is an archive device by default
    * @param {number} [opts.untrustedTimeout] How long to wait before disconnecting an untrusted peer
+   * @param {number} [opts.__testOnlyInitialSyncTimeoutMs] Warning: Do not use! Overrides how long initial sync after joining or leaving a project may go without progress before giving up
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('hyperswarm').SwarmOpts} [opts.swarm]
    */
@@ -234,6 +236,7 @@ export class MapeoManager extends TypedEmitter {
     defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
     defaultIsArchiveDevice = DEFAULT_IS_ARCHIVE_DEVICE,
     untrustedTimeout = UNTRUSTED_TIMEOUT,
+    __testOnlyInitialSyncTimeoutMs = INITIAL_SYNC_TIMEOUT_MS,
     makeWebsocket = (url) => new WebSocket(url),
   }) {
     super()
@@ -242,6 +245,7 @@ export class MapeoManager extends TypedEmitter {
     this.#defaultConfigPath = defaultConfigPath
     this.#defaultIsArchiveDevice = defaultIsArchiveDevice
     this.#untrustedTimeout = untrustedTimeout
+    this.#initialSyncTimeoutMs = __testOnlyInitialSyncTimeoutMs
     this.#makeWebsocket = makeWebsocket
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
     this.#l = Logger.create('manager', logger)
@@ -979,7 +983,7 @@ export class MapeoManager extends TypedEmitter {
       try {
         if (this.#testOnlyForceSyncFail) throw new SyncTimeoutError()
         await project.$sync.waitForSync('initial', {
-          timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
+          timeoutMs: this.#initialSyncTimeoutMs,
           errorOnNoPeers: true,
         })
       } catch (e) {
@@ -1266,7 +1270,7 @@ export class MapeoManager extends TypedEmitter {
     // fails, it will sync on the next connection.
     try {
       await project.$sync.waitForSync('initial', {
-        timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
+        timeoutMs: this.#initialSyncTimeoutMs,
       })
     } catch {
       // Ignore — propagation is opportunistic.

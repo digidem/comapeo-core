@@ -883,6 +883,7 @@ function hashPassthrough(hash) {
  * @template {import('../src/types.js').BlobId['type']} T
  * @param {T} type
  * @param {import('node:test').TestContext} t
+ * @param {{ largeOriginal?: boolean }} [opts]
  * @returns {Promise<T extends 'photo'
  *   ? {
  *       filepaths: { original: string, preview: string, thumbnail: string },
@@ -896,12 +897,16 @@ function hashPassthrough(hash) {
  *    }>
  * }
  */
-export async function createBlobFixture(type, t) {
+export async function createBlobFixture(
+  type,
+  t,
+  { largeOriginal = false } = {}
+) {
   if (type !== 'photo') {
     const size =
       type === 'audio'
-        ? randomInt(2 * 2 ** 20, 4 * 2 ** 20)
-        : randomInt(10 * 2 ** 20, 20 * 2 ** 20)
+        ? randomInt(64 * 2 ** 10, 128 * 2 ** 10)
+        : randomInt(320 * 2 ** 10, 640 * 2 ** 10)
     const [original, hash] = await randomFileAndHash(type, size)
     t.after(() => fsPromises.rm(original))
     // @ts-expect-error - TS can't return type based on arg within fn
@@ -911,9 +916,13 @@ export async function createBlobFixture(type, t) {
       type,
     }
   }
-  const originalSize = randomInt(2 * 2 ** 20, 5 * 2 ** 20)
-  const previewSize = randomInt(500 * 2 ** 10, 1 * 2 ** 20)
-  const thumbSize = randomInt(50 * 2 ** 10, 200 * 2 ** 10)
+  // Blobs are stored in 64 KiB blocks. A large original is over 16 blocks, which
+  // takes hyperblobs' batched-append path.
+  const originalSize = largeOriginal
+    ? randomInt(1200 * 2 ** 10, 2 * 2 ** 20)
+    : randomInt(64 * 2 ** 10, 160 * 2 ** 10)
+  const previewSize = randomInt(96 * 2 ** 10, 256 * 2 ** 10)
+  const thumbSize = randomInt(8 * 2 ** 10, 80 * 2 ** 10)
   const [original, originalHash] = await randomFileAndHash(type, originalSize)
   const [preview, previewHash] = await randomFileAndHash(type, previewSize)
   const [thumb, thumbHash] = await randomFileAndHash(type, thumbSize)
@@ -959,7 +968,7 @@ export async function createBlobFixture(type, t) {
 export async function seedProjectBlobs(project, t, { photoCount, audioCount }) {
   const promises = []
   for (let i = 0; i < photoCount; i++) {
-    promises.push(createBlobFixture('photo', t))
+    promises.push(createBlobFixture('photo', t, { largeOriginal: i === 0 }))
   }
   for (let i = 0; i < audioCount; i++) {
     promises.push(createBlobFixture('audio', t))
