@@ -424,6 +424,10 @@ test('Acks are sent before the sender has sent its device info', async () => {
 
   await pTimeout(
     Promise.all([
+      pEvent(r1, 'invite-ack'),
+      pEvent(r1, 'invite-cancel-ack'),
+      pEvent(r1, 'invite-response-ack'),
+      pEvent(r1, 'got-project-details-ack'),
       r1.sendInvite(deviceId, validInvite),
       r1.sendInviteCancel(deviceId, { inviteId }),
       r1.sendInviteResponse(deviceId, {

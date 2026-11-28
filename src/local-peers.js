@@ -262,8 +262,7 @@ class Peer {
 
   /**
    * Check if RPC Acknowledgement messages are supported by this peer.
-   * Only decides whether we wait for acks: we always send them, because the
-   * sender's DeviceInfo may not have reached us yet and older peers ignore them.
+   * Only gates waiting for acks; acks are always sent.
    * @returns {boolean}
    */
   supportsAck() {
@@ -302,7 +301,6 @@ class Peer {
    * @param {AckResponse} ack
    */
   receiveAck(type, ack) {
-    if (!this.supportsAck()) return
     if (!this.#ackWaiters.has(type)) return
     const waiters = this.#ackWaiters.get(type)
     if (!waiters || !waiters.size) {
