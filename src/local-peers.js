@@ -261,7 +261,8 @@ class Peer {
   }
 
   /**
-   * Check if RPC Acknowledgement messages are supported by this peer
+   * Check if RPC Acknowledgement messages are supported by this peer.
+   * Only gates waiting for acks; acks are always sent.
    * @returns {boolean}
    */
   supportsAck() {
@@ -300,7 +301,6 @@ class Peer {
    * @param {AckResponse} ack
    */
   receiveAck(type, ack) {
-    if (!this.supportsAck()) return
     if (!this.#ackWaiters.has(type)) return
     const waiters = this.#ackWaiters.get(type)
     if (!waiters || !waiters.size) {
@@ -358,7 +358,6 @@ class Peer {
    */
   async sendInviteAck({ inviteId }) {
     this.#assertConnected('Peer disconnected before sending invite ack')
-    if (!this.supportsAck()) return
     const buf = Buffer.from(InviteAck.encode({ inviteId }).finish())
     const messageType = MESSAGE_TYPES.InviteAck
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
@@ -385,7 +384,6 @@ class Peer {
    */
   async sendInviteCancelAck({ inviteId }) {
     this.#assertConnected('Peer disconnected before sending invite cancel ack')
-    if (!this.supportsAck()) return
     const buf = Buffer.from(InviteCancelAck.encode({ inviteId }).finish())
     const messageType = MESSAGE_TYPES.InviteCancelAck
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
@@ -414,7 +412,6 @@ class Peer {
     this.#assertConnected(
       'Peer disconnected before sending invite response ack'
     )
-    if (!this.supportsAck()) return
     const buf = Buffer.from(InviteResponseAck.encode({ inviteId }).finish())
     const messageType = MESSAGE_TYPES.InviteResponseAck
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
@@ -437,7 +434,6 @@ class Peer {
     this.#assertConnected(
       'Peer disconnected before sending project join details ack'
     )
-    if (!this.supportsAck()) return
     const buf = Buffer.from(ProjectJoinDetailsAck.encode({ inviteId }).finish())
     const messageType = MESSAGE_TYPES.ProjectJoinDetailsAck
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
