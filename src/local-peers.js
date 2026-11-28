@@ -304,8 +304,6 @@ class Peer {
   }
 
   /**
-   * Send a message and wait for it to drain and, if the peer supports acks,
-   * to be acknowledged.
    * @param {keyof typeof MESSAGE_TYPES} messageType
    * @param {Buffer} buf
    * @param {keyof typeof MESSAGE_TYPES} ackType

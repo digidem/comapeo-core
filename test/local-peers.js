@@ -14,6 +14,7 @@ import {
 } from '../src/generated/rpc.js'
 import { pEvent } from 'p-event'
 import pTimeout from 'p-timeout'
+import { setImmediate } from 'node:timers/promises'
 import {
   RPCDisconnectBeforeSendingError,
   UnknownPeerError,
@@ -453,9 +454,16 @@ test('Ack received while waiting for drain resolves send', async (t) => {
   const restoreWrite = reportBackpressure(stream)
 
   const onInviteAck = pEvent(r1, 'invite-ack')
+  let settled = false
   const sendPromise = r1.sendInvite(peer.deviceId, testInvite())
+  sendPromise.then(
+    () => (settled = true),
+    () => (settled = true)
+  )
 
   await onInviteAck
+  await setImmediate()
+  assert.equal(settled, false, 'still waiting for drain when ack arrives')
   restoreWrite()
   stream.emit('drain')
 
