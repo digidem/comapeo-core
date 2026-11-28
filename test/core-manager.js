@@ -26,6 +26,8 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { coresTable } from '../src/schema/project.js'
 import { eq } from 'drizzle-orm'
 import { createCore } from './helpers/create-core.js'
+import { waitFor } from './helpers/wait-for.js'
+import pTimeout from 'p-timeout'
 /** @import { Namespace } from '../src/types.js' */
 
 test('project creator auth core has project key', async function (t) {
@@ -71,12 +73,23 @@ test('eagerly updates remote bitfields', async (t) => {
 
   const destroyReplication = (await replicate(cm1, cm2)).destroy
 
-  await waitForCores(cm2, [cm1Core.key])
+  await pTimeout(waitForCores(cm2, [cm1Core.key]), { milliseconds: 10_000 })
   const cm2Core = cm2.getCoreByKey(cm1Core.key)
   assert(cm2Core, 'writer core has replicated')
 
-  // Need to wait for now, since no event for when a remote bitfield is updated
-  await new Promise((res) => setTimeout(res, 200))
+  // No event fires when a remote bitfield is updated, so poll for it
+  await waitFor(
+    () =>
+      cm2Core.length === cm1Core.length &&
+      cm2Core.peers.length > 0 &&
+      !!cm1Core.core &&
+      bitfieldEquals(
+        cm2Core.peers[0].remoteBitfield,
+        cm1Core.core.bitfield,
+        cm1Core.length
+      ),
+    { message: 'remote bitfield on cm2 to match cm1' }
+  )
 
   assert.equal(cm2Core.length, cm1Core.length)
 
@@ -103,9 +116,19 @@ test('eagerly updates remote bitfields', async (t) => {
   {
     // This is ensuring that bitfields also get propogated in the other
     // direction, e.g. from the non-writer to the writer
+    assert.equal(cm1Core.peers.length, 0, 'previous replication is closed')
     const { destroy } = await replicate(cm1, cm2)
-    // Need to wait for now, since no event for when a remote bitfield is updated
-    await new Promise((res) => setTimeout(res, 200))
+    await waitFor(
+      () =>
+        cm1Core.peers.length > 0 &&
+        !!cm2Core.core &&
+        bitfieldEquals(
+          cm1Core.peers[0].remoteBitfield,
+          cm2Core.core.bitfield,
+          cm1Core.length
+        ),
+      { message: 'remote bitfield on writer to match replica' }
+    )
     assert(cm2Core.core)
     assert(
       bitfieldEquals(
@@ -125,10 +148,21 @@ test('eagerly updates remote bitfields', async (t) => {
     replicate(cm1, cm2)
     replicate(cm2, cm3)
 
-    await new Promise((res) => setTimeout(res, 200))
-
+    await pTimeout(waitForCores(cm3, [cm1Core.key]), { milliseconds: 10_000 })
     const cm3Core = cm3.getCoreByKey(cm1Core.key)
     assert(cm3Core)
+    await waitFor(
+      () =>
+        cm3Core.length === cm1Core.length &&
+        cm3Core.peers.length > 0 &&
+        !!cm2Core.core &&
+        bitfieldEquals(
+          cm3Core.peers[0].remoteBitfield,
+          cm2Core.core.bitfield,
+          cm2Core.length
+        ),
+      { message: 'remote bitfield on cm3 to match cm2' }
+    )
     assert.deepEqual(cm3Core.length, cm1Core.length)
 
     assert(
@@ -144,7 +178,17 @@ test('eagerly updates remote bitfields', async (t) => {
     await cm1Core.append(['k', 'l', 'm', 'o', 'p'])
     await cm2Core.download({ start: 9, end: 12 }).done()
 
-    await new Promise((res) => setTimeout(res, 200))
+    await waitFor(
+      () =>
+        cm3Core.length === cm1Core.length &&
+        !!cm2Core.core &&
+        bitfieldEquals(
+          cm3Core.peers[0].remoteBitfield,
+          cm2Core.core.bitfield,
+          cm2Core.length
+        ),
+      { message: 'remote bitfield on cm3 to match cm2 after append' }
+    )
 
     assert.deepEqual(cm3Core.length, cm1Core.length)
     assert(
