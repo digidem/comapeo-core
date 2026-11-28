@@ -210,3 +210,46 @@ test('replicate with updating data', async function (t) {
   await Promise.all([syncState1Sync.promise, syncState2Sync.promise])
   await Promise.all([blobStore1.close(), blobStore2.close()])
 })
+
+test('state includes cores added after it was read', async (t) => {
+  const cm = createCoreManager(t)
+  // Only used by the blob namespace
+  const blobStore = /** @type {any} */ ({})
+  let updates = 0
+  const syncState = new NamespaceSyncState({
+    coreManager: cm,
+    blobStore,
+    namespace: 'config',
+    onUpdate: () => updates++,
+    peerSyncControllers: new Map(),
+  })
+
+  const before = syncState.getState().coreCount
+  const updatesBefore = updates
+  cm.addCore(randomBytes(32), 'config')
+  await new Promise((resolve) => process.nextTick(resolve))
+
+  assert.equal(syncState.getState().coreCount, before + 1)
+  assert(updates > updatesBefore, 'onUpdate called for the new core')
+})
+
+test("state includes a core's blocks once its bitfield has loaded", async (t) => {
+  const cm = createCoreManager(t)
+  const { core } = cm.getWriterCore('config')
+  await core.ready()
+  await core.append(['a', 'b'])
+
+  const syncState = new NamespaceSyncState({
+    coreManager: cm,
+    // Only used by the blob namespace
+    blobStore: /** @type {any} */ ({}),
+    namespace: 'config',
+    onUpdate: () => {},
+    peerSyncControllers: new Map(),
+  })
+
+  assert.equal(syncState.getState().localState.have, 0, 'read before load')
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(syncState.getState().localState.have, 2)
+})
