@@ -193,6 +193,14 @@ streams of that shape.
   re-wiring cores/DBs by hand.
 - Unit tests mirror source layout (e.g. `test/data-type.js` for `src/datatype/`);
   multi-device/cross-version scenarios go in `test-e2e/`.
+- **The `replicate()` helper in `test/helpers/core-manager.js` is not production
+  wiring.** It uses `corestore.replicate()`, which attaches every core as soon as the
+  stream opens. Production attaches cores later and selectively, through LocalPeers'
+  shared Protomux and `PeerSyncController` (by namespace and role). The helper is fine
+  for moving data between two instances. Tests about attach order, namespace gating or
+  roles need production wiring: `connectPeers` in `test-e2e/`, or `Protomux.from()`
+  plus a catch-all `hypercore/alpha` pair, as in the "cores added to a replication
+  stream at different times" test in `test/core-manager.js`.
 - Run one file: `node --test test/data-type.js`.
 
 ## Code Style
