@@ -280,20 +280,51 @@ class Peer {
   /**
    * @param {keyof typeof MESSAGE_TYPES} type
    * @param {AckFilter} filter
+   * @returns {AckWaiter | undefined}
+   */
+  #addAckWaiter(type, filter) {
+    if (!this.supportsAck()) return
+    let waiters = this.#ackWaiters.get(type)
+    if (!waiters) {
+      waiters = new Set()
+      this.#ackWaiters.set(type, waiters)
+    }
+    /** @type {AckWaiter} */
+    const waiter = { deferred: pDefer(), filter }
+    waiters.add(waiter)
+    return waiter
+  }
+
+  /**
+   * @param {keyof typeof MESSAGE_TYPES} type
+   * @param {AckWaiter} waiter
+   */
+  #removeAckWaiter(type, waiter) {
+    this.#ackWaiters.get(type)?.delete(waiter)
+  }
+
+  /**
+   * @param {keyof typeof MESSAGE_TYPES} messageType
+   * @param {Buffer} buf
+   * @param {keyof typeof MESSAGE_TYPES} ackType
+   * @param {AckFilter} filter
    * @returns {Promise<void>}
    */
-  async #waitForAck(type, filter) {
-    if (!this.supportsAck()) return
-    if (!this.#ackWaiters.has(type)) {
-      this.#ackWaiters.set(type, new Set())
+  async #sendWithAck(messageType, buf, ackType, filter) {
+    // Register before sending: the ack can arrive while we wait for drain
+    const waiter = this.#addAckWaiter(ackType, filter)
+    let didWrite
+    try {
+      didWrite = this.#channel.messages[MESSAGE_TYPES[messageType]].send(buf)
+    } catch (e) {
+      if (waiter) this.#removeAckWaiter(ackType, waiter)
+      throw e
     }
-    const deferred = pDefer()
-    this.#ackWaiters.get(type)?.add({
-      deferred,
-      filter,
-    })
-
-    await deferred.promise
+    const acked = waiter?.deferred.promise
+    // Disconnect rejects both; surface the drain error and mark the ack handled
+    acked?.catch(noop)
+    await this.#waitForDrain(didWrite)
+    await acked
   }
 
   /**
@@ -344,9 +375,7 @@ class Peer {
   async sendInvite(invite) {
     this.#assertConnected('Peer disconnected before sending invite')
     const buf = Buffer.from(Invite.encode(invite).finish())
-    const messageType = MESSAGE_TYPES.Invite
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('InviteAck', ({ inviteId }) =>
+    await this.#sendWithAck('Invite', buf, 'InviteAck', ({ inviteId }) =>
       timingSafeEqual(inviteId, invite.inviteId)
     )
     this.#log('sent invite %h', invite.inviteId)
@@ -370,10 +399,11 @@ class Peer {
   async sendInviteCancel(inviteCancel) {
     this.#assertConnected('Peer disconnected before sending invite cancel')
     const buf = Buffer.from(InviteCancel.encode(inviteCancel).finish())
-    const messageType = MESSAGE_TYPES.InviteCancel
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('InviteCancelAck', ({ inviteId }) =>
-      timingSafeEqual(inviteId, inviteCancel.inviteId)
+    await this.#sendWithAck(
+      'InviteCancel',
+      buf,
+      'InviteCancelAck',
+      ({ inviteId }) => timingSafeEqual(inviteId, inviteCancel.inviteId)
     )
     this.#log('sent invite cancel %h', inviteCancel.inviteId)
   }
@@ -396,10 +426,11 @@ class Peer {
   async sendInviteResponse(response) {
     this.#assertConnected('Peer disconnected before sending invite response')
     const buf = Buffer.from(InviteResponse.encode(response).finish())
-    const messageType = MESSAGE_TYPES.InviteResponse
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('InviteResponseAck', ({ inviteId }) =>
-      timingSafeEqual(inviteId, response.inviteId)
+    await this.#sendWithAck(
+      'InviteResponse',
+      buf,
+      'InviteResponseAck',
+      ({ inviteId }) => timingSafeEqual(inviteId, response.inviteId)
     )
     this.#log('sent response for %h: %s', response.inviteId, response.decision)
   }
@@ -422,10 +453,11 @@ class Peer {
       'Peer disconnected before sending project join details'
     )
     const buf = Buffer.from(ProjectJoinDetails.encode(details).finish())
-    const messageType = MESSAGE_TYPES.ProjectJoinDetails
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('ProjectJoinDetailsAck', ({ inviteId }) =>
-      timingSafeEqual(inviteId, details.inviteId)
+    await this.#sendWithAck(
+      'ProjectJoinDetails',
+      buf,
+      'ProjectJoinDetailsAck',
+      ({ inviteId }) => timingSafeEqual(inviteId, details.inviteId)
     )
     this.#log('sent project join details for %h', details.projectKey)
   }

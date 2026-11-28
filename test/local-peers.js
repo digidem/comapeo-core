@@ -14,7 +14,11 @@ import {
 } from '../src/generated/rpc.js'
 import { pEvent } from 'p-event'
 import pTimeout from 'p-timeout'
-import { UnknownPeerError } from '../src/errors.js'
+import { setImmediate } from 'node:timers/promises'
+import {
+  RPCDisconnectBeforeSendingError,
+  UnknownPeerError,
+} from '../src/errors.js'
 
 test('sending and receiving invites', async () => {
   const r1 = new LocalPeers()
@@ -439,6 +443,109 @@ test('Acks are sent before the sender has sent its device info', async () => {
     { milliseconds: 1000 }
   )
 })
+
+test('Ack received while waiting for drain resolves send', async (t) => {
+  const { r1, destroy } = await connectR1ToAckingPeer()
+  t.after(() => destroy())
+
+  const peer = r1.peers[0]
+  assert(peer.status === 'connected')
+  const stream = peer.protomux.stream
+  const restoreWrite = reportBackpressure(stream)
+
+  const onInviteAck = pEvent(r1, 'invite-ack')
+  let settled = false
+  const sendPromise = r1.sendInvite(peer.deviceId, testInvite())
+  sendPromise.then(
+    () => (settled = true),
+    () => (settled = true)
+  )
+
+  await onInviteAck
+  await setImmediate()
+  assert.equal(settled, false, 'still waiting for drain when ack arrives')
+  restoreWrite()
+  stream.emit('drain')
+
+  await pTimeout(sendPromise, { milliseconds: 1000 })
+})
+
+test('Disconnect while waiting for drain and ack rejects send', async () => {
+  const { r1, r2, destroy } = await connectR1ToAckingPeer()
+
+  const peer = r1.peers[0]
+  assert(peer.status === 'connected')
+  reportBackpressure(peer.protomux.stream)
+
+  // An invalid invite is never acked, so the ack wait is still pending too
+  const r2FailedToHandle = pEvent(r2, 'failed-to-handle-message')
+  const sendPromise = r1.sendInvite(peer.deviceId, {
+    ...testInvite(),
+    projectName: '',
+  })
+  await r2FailedToHandle
+
+  await destroy()
+
+  await assert.rejects(
+    pTimeout(sendPromise, { milliseconds: 1000 }),
+    RPCDisconnectBeforeSendingError
+  )
+})
+
+/**
+ * Connect two LocalPeers where only r1 learns that its peer supports acks
+ */
+async function connectR1ToAckingPeer() {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+  const destroy = replicate(r1, r2)
+
+  const [, r2Peers] = await Promise.all([
+    pEvent(r1, 'peers'),
+    pEvent(r2, 'peers'),
+  ])
+
+  const r1GotDeviceInfo = pEvent(r1, 'peers')
+  await r2.sendDeviceInfo(r2Peers[0].deviceId, {
+    name: 'mapeo',
+    deviceType: 'mobile',
+    features: [DeviceInfo_RPCFeatures.ack],
+  })
+  await r1GotDeviceInfo
+
+  return { r1, r2, destroy }
+}
+
+/**
+ * Make writes to the stream report backpressure while still writing the data,
+ * so senders wait for a 'drain' event that only the test emits.
+ * @param {{ write: (...args: any[]) => boolean }} stream
+ * @returns {() => void} restores the original write method
+ */
+function reportBackpressure(stream) {
+  const originalWrite = stream.write
+  stream.write = (...args) => {
+    originalWrite.apply(stream, args)
+    return false
+  }
+  return () => {
+    stream.write = originalWrite
+  }
+}
+
+/** @returns {import('../src/generated/rpc.js').Invite} */
+function testInvite() {
+  return {
+    inviteId: testInviteId(),
+    projectInviteId: testProjectInviteId(),
+    projectName: 'Mapeo Project',
+    invitorName: 'device0',
+    sendStats: false,
+    leaveOnFail: false,
+    invitorWroteDeviceInfo: false,
+  }
+}
 
 function testInviteId() {
   return randomBytes(32)
