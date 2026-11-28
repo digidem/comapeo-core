@@ -36,6 +36,7 @@ import {
   AlreadyInvitingError,
   InvalidResponseBodyError,
   RPCDisconnectBeforeAckError,
+  RPCAckTimeoutError,
   InvalidInternetInviteURLError,
   InviteAlreadyRedeemedError,
   InviteNotYetRedeemedError,
@@ -598,6 +599,10 @@ export class MemberApi extends TypedEmitter {
     } catch (e) {
       if (e instanceof RPCDisconnectBeforeAckError) {
         this.#l.log('ERROR: Disconnect before ack', e)
+        throw new InviteAbortedError()
+      }
+      if (e instanceof RPCAckTimeoutError) {
+        this.#l.log('ERROR: Timed out waiting for ack', e)
         throw new InviteAbortedError()
       }
       throw ensureKnownError(e)
