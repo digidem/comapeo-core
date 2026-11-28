@@ -307,8 +307,6 @@ test('adding a server peer', async (t) => {
 
 test('adding a server peer and getting stream errors in connectServers', async (t) => {
   let failNext = false
-  /** @type {WebSocket[]} */
-  const websockets = []
   /** @type {import('p-defer').DeferredPromise<WebSocket>} */
   let nextWebsocket = pDefer()
   /**
@@ -317,7 +315,6 @@ test('adding a server peer and getting stream errors in connectServers', async (
    */
   function makeWebsocket(url) {
     const ws = new WebSocket(url)
-    websockets.push(ws)
     if (failNext) {
       failNext = false
       process.nextTick(() => {
