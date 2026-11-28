@@ -164,55 +164,80 @@ test('cores added to a replication stream at different times still replicate', a
   // Mapeo adds cores to a peer's replication stream long after the peer has
   // opened channels for them. This is not explicitly tested in Hypercore.
 
-  await t.test('core attached inside the discovery-key handler', async (t) => {
-    const { a, b, muxA, muxB } = await setupLateReplication(t)
-    const bByDiscoveryKey = new Map(
-      b.map((core) => [core.discoveryKey?.toString('hex'), core])
-    )
-    // Like PeerSyncController#handleDiscoveryKey for a known, enabled core
-    muxB.pair({ protocol: 'hypercore/alpha' }, async (discoveryKey) => {
-      bByDiscoveryKey.get(discoveryKey.toString('hex'))?.replicate(muxB)
-    })
-    for (const core of a) core.replicate(muxA)
+  // A broken late attach hangs rather than failing
+  await t.test(
+    'core attached inside the discovery-key handler',
+    { timeout: 10_000 },
+    async (t) => {
+      const { a, b, muxA, muxB } = await setupLateReplication(t)
+      const bByDiscoveryKey = new Map(
+        b.map((core) => [core.discoveryKey?.toString('hex'), core])
+      )
+      // Like PeerSyncController#handleDiscoveryKey for a known, enabled core
+      muxB.pair({ protocol: 'hypercore/alpha' }, async (discoveryKey) => {
+        bByDiscoveryKey.get(discoveryKey.toString('hex'))?.replicate(muxB)
+      })
+      for (const core of a) core.replicate(muxA)
 
-    await assertLateReplication(a, b)
-  })
-
-  await t.test('remote open rejected, core attached later', async (t) => {
-    const { a, b, muxA, muxB } = await setupLateReplication(t)
-    const discoveryKeysSeen = waitForDiscoveryKeys(muxB, a.length)
-    for (const core of a) core.replicate(muxA)
-    // Protomux rejects the remote open once the pair handler resolves, so B's
-    // later open relies on Hypercore re-pairing.
-    await discoveryKeysSeen
-    await new Promise(setImmediate)
-    for (const core of b) core.replicate(muxB)
-
-    await assertLateReplication(a, b)
-  })
-
-  await t.test('core attached after a long idle gap', async (t) => {
-    const { a, b, muxA, muxB } = await setupLateReplication(t, {
-      keepAlive: 5000,
-    })
-    const discoveryKeysSeen = waitForDiscoveryKeys(muxB, a.length)
-    for (const core of a) core.replicate(muxA)
-    await discoveryKeysSeen
-    await new Promise(setImmediate)
-
-    // Catches any timer-based expiry of the rejected or idle channels
-    const clock = FakeTimers.install({
-      toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
-    })
-    try {
-      await clock.tickAsync(10 * 60_000)
-    } finally {
-      clock.uninstall()
+      await assertLateReplication(a, b)
     }
-    for (const core of b) core.replicate(muxB)
+  )
 
-    await assertLateReplication(a, b)
-  })
+  await t.test(
+    'remote open rejected, core attached later',
+    { timeout: 10_000 },
+    async (t) => {
+      const { a, b, muxA, muxB } = await setupLateReplication(t)
+      const discoveryKeysSeen = waitForDiscoveryKeys(muxB, a.length)
+      for (const core of a) core.replicate(muxA)
+      // Protomux rejects the remote open once the pair handler resolves, so B's
+      // later open relies on A's discovery-key pairing staying registered.
+      await discoveryKeysSeen
+      await new Promise(setImmediate)
+      for (const core of b) core.replicate(muxB)
+
+      await assertLateReplication(a, b)
+    }
+  )
+
+  await t.test(
+    'core attached after a long idle gap',
+    { timeout: 10_000 },
+    async (t) => {
+      /** @type {FakeTimers.InstalledClock | undefined} */
+      let clock
+      t.after(() => clock?.uninstall())
+      const { a, b, muxA, muxB } = await setupLateReplication(t, {
+        keepAlive: 5000,
+        // Installed before the streams exist, so their keep-alive timers are fake
+        // and the idle gap below exercises them
+        beforeStreams: () => {
+          clock = FakeTimers.install({
+            toFake: [
+              'setTimeout',
+              'clearTimeout',
+              'setInterval',
+              'clearInterval',
+            ],
+          })
+        },
+      })
+      const discoveryKeysSeen = waitForDiscoveryKeys(muxB, a.length)
+      for (const core of a) core.replicate(muxA)
+      await discoveryKeysSeen
+      await new Promise(setImmediate)
+
+      // Catches any timer-based expiry of the rejected or idle channels
+      assert(clock)
+      assert(clock.countTimers() > 0, 'keep-alive timers are on the fake clock')
+      await clock.tickAsync(10 * 60_000)
+      clock.uninstall()
+      clock = undefined
+      for (const core of b) core.replicate(muxB)
+
+      await assertLateReplication(a, b)
+    }
+  )
 })
 
 /**
@@ -220,13 +245,17 @@ test('cores added to a replication stream at different times still replicate', a
  * LocalPeers connects peers: one shared Protomux per noise stream.
  *
  * @param {import('node:test').TestContext} t
- * @param {{ keepAlive?: number }} [opts] keep-alive interval, as on internet connections
+ * @param {{ keepAlive?: number, beforeStreams?: () => void }} [opts] keepAlive: interval, as on internet connections
  */
-async function setupLateReplication(t, { keepAlive = 0 } = {}) {
+async function setupLateReplication(
+  t,
+  { keepAlive = 0, beforeStreams = () => {} } = {}
+) {
   const a = [await createCore(t), await createCore(t)]
   const b = [await createCore(t, a[0].key), await createCore(t, a[1].key)]
   await a[0].append('hi')
   await a[1].append('ho')
+  beforeStreams()
 
   const n1 = new NoiseSecretStream(true)
   const n2 = new NoiseSecretStream(false)
