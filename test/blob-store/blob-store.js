@@ -19,6 +19,7 @@ import { discoveryKey } from 'hypercore-crypto'
 import Hyperdrive from 'hyperdrive'
 import { setTimeout as delay } from 'node:timers/promises'
 import { Logger } from '../../src/logger.js'
+import { waitFor } from '../helpers/wait-for.js'
 
 // Test with buffers that are 3 times the default blockSize for hyperblobs
 const TEST_BUF_SIZE = 3 * 64 * 1024
@@ -321,7 +322,8 @@ test('download all blobs', async function (t) {
   // STEP 4: Write a blob to CM2
   const driveId2 = await bs2.put(blob2Id, blob2)
   // STEP 5: Wait for blobs to be downloaded
-  await delay(200)
+  await waitForBlob(bs3, { ...blob1Id, driveId: driveId1 })
+  await waitForBlob(bs3, { ...blob2Id, driveId: driveId2 })
   // STEP 6: destroy all the replication streams
   await Promise.all([destroy1(), destroy2()])
 
@@ -431,7 +433,9 @@ test('filtered download, filter changed', async function (t) {
 
   const { destroy } = await replicate(cm1, cm2)
 
-  // Wait for blobs to be downloaded
+  await waitForBlob(bs2, { ...blob2Id, driveId })
+  await waitForBlob(bs2, { ...blob3Id, driveId })
+  // No event signals that a blob was skipped, so allow time for a wrong download
   await delay(200)
 
   assert.deepEqual(
@@ -452,11 +456,8 @@ test('filtered download, filter changed', async function (t) {
   // Change the filter to download all
   await bs2.setIsArchiveDevice(true)
 
-  // Wait for blobs to be downloaded
-  await delay(200)
-
   assert.deepEqual(
-    await bs2.get({ ...blob1Id, driveId }),
+    await waitForBlob(bs2, { ...blob1Id, driveId }),
     blob1,
     'original was downloaded'
   )
@@ -650,14 +651,14 @@ test('blobStore.createEntriesReadStream({ live: true })', async (t) => {
   const entriesStream = bs3.createEntriesReadStream({ live: true })
   entriesStream.on('data', (entry) => entries.push(entry))
   // STEP 4: Wait for replication
-  await delay(200)
+  await waitFor(() => entries.length >= 1, { message: 'first entry' })
   assert.equal(entries.length, 1, 'entry from replicated blobStore')
   // STEP 5: Replicate CM2 with CM3
   const { destroy: destroy2 } = await replicate(cm2, cm3)
   // STEP 6: Write a blob to CM2
   await bs2.put(blob2Id, blob2)
   // STEP 7: Wait for replication
-  await delay(200)
+  await waitFor(() => entries.length >= 2, { message: 'second entry' })
   // STEP 8: destroy all the replication streams
   await Promise.all([destroy1(), destroy2()])
 
@@ -672,7 +673,7 @@ test('blobStore.createEntriesReadStream({ live: true })', async (t) => {
  * @param {{ timeout?: number }} [opts]
  * @returns {Promise<Uint8Array>}
  */
-async function waitForBlob(blobStore, blobId, { timeout = 5000 } = {}) {
+async function waitForBlob(blobStore, blobId, { timeout = 10_000 } = {}) {
   const deadline = Date.now() + timeout
   while (Date.now() < deadline) {
     try {
